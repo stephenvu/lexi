@@ -1,0 +1,17 @@
+# Firebase App Hosting config. See https://firebase.google.com/docs/app-hosting/configure
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 40
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  # Create with: firebase apphosting:secrets:set GEMINI_API_KEY
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
+  - variable: GEMINI_MODEL
+    value: gemini-3.5-flash-lite
+    availability:
+      - BUILD
+      - RUNTIME

@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lexi
 
-## Getting Started
+An AI-powered English dictionary for language learners, built with Next.js and Gemini Flash Lite.
 
-First, run the development server:
+See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integration, the Firestore cache, the API route, and the UI).
+
+## Prerequisites
+
+- A [Firebase project](https://console.firebase.google.com/) with **Firestore** enabled (Native mode).
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey).
+
+## Setup
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Create `.env.local` in the project root (there's no `.env.example` to copy — see note in `CLAUDE.md`):
+   ```
+   GEMINI_API_KEY=your-key-here
+   GEMINI_MODEL=gemini-3.5-flash-lite
+   GOOGLE_CLOUD_PROJECT=your-firebase-project-id
+   ```
+3. Set up local Firestore credentials via Application Default Credentials:
+   ```bash
+   gcloud auth application-default login
+   ```
+   `GOOGLE_CLOUD_PROJECT` above is required alongside this — user ADC credentials (unlike a service account) don't carry a project id on their own.
+4. Set your real Firebase project id in `.firebaserc` (currently a placeholder).
+
+## Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3333](http://localhost:3333) (the dev server runs on port 3333 — see `package.json`) and look up a word.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This app targets [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) (config in `apphosting.yaml`/`firebase.json`):
 
-## Learn More
+```bash
+firebase apphosting:secrets:set GEMINI_API_KEY
+firebase deploy --only apphosting
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Other commands
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run build` — production build
+- `npm run start` — run a production build
+- `npm run lint` — ESLint

@@ -1,0 +1,11 @@
+{
+  "apphosting": {
+    "backendId": "lexi",
+    "rootDir": "/",
+    "ignore": ["node_modules", ".git", ".next/cache"]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
