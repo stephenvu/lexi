@@ -15,6 +15,8 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 - **Deliberate search-on-submit** — looks up on Enter/click only (never live-as-you-type), avoiding a Gemini call per keystroke; a new search cancels a still-in-flight one.
 - **Richer lookups** — synonyms/antonyms, pronunciation (IPA + audio), usage notes, "did you mean" fallback for typos.
 - **Saved words & history** — favorite words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box. Local-only (`localStorage`), not synced across devices.
+- **Study features** — a word-of-the-day drawn from your favorites, and a `/study` flashcard deck through them. See `specs/study-features.md`.
+- **Cost safety net** — new-word lookups (the ones that actually call Gemini; repeat/cached lookups are unaffected) are rate-limited per IP in production, since this is a public search box with no accounts. A safety net against a runaway bill, not attacker-resistant abuse prevention — see the "Cost safety net" note under Deploy below.
 
 ### Planned / beyond current MVP scope
 
@@ -22,8 +24,7 @@ Deliberately left out of the first build to keep scope tight — listed here as 
 
 - **Etymology & related/confusable words** — deferred from the Richer Lookups pass; see `specs/richer-lookups.md`.
 - **Accounts & cross-device sync** — would replace today's local-only history/favorites.
-- **Study features** — a word-of-the-day, and flashcards/quizzes generated from saved words.
-- **Abuse/cost guardrails** — rate limiting or Firebase App Check, since novel-word lookups bypass the cache and hit Gemini billing directly today.
+- **Firebase App Check** — a stronger, attacker-resistant anti-abuse layer than the current per-IP rate limit, at the cost of the app's first client-side Firebase SDK dependency plus a reCAPTCHA registration.
 
 ## Prerequisites
 
@@ -41,6 +42,9 @@ Deliberately left out of the first build to keep scope tight — listed here as 
    GEMINI_API_KEY=your-key-here
    GEMINI_MODEL=gemini-3.5-flash-lite
    GOOGLE_CLOUD_PROJECT=your-firebase-project-id
+   # Optional — new-word lookups per IP per hour before a 429. Defaults to
+   # 20. Only enforced when NODE_ENV=production (never in local dev).
+   RATE_LIMIT_MAX_PER_HOUR=20
    ```
 3. Set up local Firestore credentials via Application Default Credentials:
    ```bash
@@ -65,6 +69,13 @@ This app targets [Firebase App Hosting](https://firebase.google.com/docs/app-hos
 firebase apphosting:secrets:set GEMINI_API_KEY
 firebase deploy --only apphosting
 ```
+
+### Cost safety net
+
+The per-IP rate limit above caps *sustained* cost, but the only thing that caps spend regardless of any bug in the app's own logic is a [Cloud Billing budget](https://docs.cloud.google.com/billing/docs/how-to/budgets) on the underlying GCP project:
+
+1. In the Cloud Console, create a budget against this project's billing account with email alerts at a few thresholds (e.g. 50%/90%/100% of whatever monthly figure you're comfortable with). Five minutes, zero code.
+2. Optional, more aggressive: wire the budget to a Pub/Sub topic and a small Cloud Function that calls the Cloud Billing API to detach the project from billing once a hard cap is hit — a real kill switch, but it takes down the whole Firebase project (Firestore included), not just Gemini calls. Only worth it if you want a true hard stop rather than an alert.
 
 ## Other commands
 

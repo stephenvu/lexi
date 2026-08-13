@@ -7,6 +7,7 @@ import {
   normalizeWord,
   type DefinitionResult,
 } from "@/lib/gemini"
+import { checkRateLimit } from "@/lib/rate-limit"
 
 const COLLECTION = "definitions"
 
@@ -61,14 +62,19 @@ async function writeCache(key: string, result: DefinitionResult): Promise<void> 
  * A cache-write failure is logged but never surfaces to the caller — a
  * successful Gemini lookup should still be returned even if Firestore is
  * temporarily unavailable.
+ *
+ * `ip` gates only the cache-miss path below (a rate limit on new Gemini
+ * calls, the actual cost driver) — cache hits are free and stay unlimited.
  */
-export async function getDefinition(rawWord: string): Promise<DefinitionResult> {
+export async function getDefinition(rawWord: string, ip: string): Promise<DefinitionResult> {
   const key = normalizeWord(rawWord).toLowerCase()
 
   const cached = await readCache(key)
   if (cached) {
     return cached
   }
+
+  await checkRateLimit(ip)
 
   const generated = await generateDefinition(rawWord)
 
