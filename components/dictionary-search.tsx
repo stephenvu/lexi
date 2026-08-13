@@ -1,9 +1,11 @@
 "use client"
 
 import { useRef, useState, useSyncExternalStore } from "react"
-import { BookOpenIcon, SearchIcon, StarIcon, Volume2Icon } from "lucide-react"
+import Link from "next/link"
+import { BookOpenIcon, GraduationCapIcon, SearchIcon, StarIcon, Volume2Icon } from "lucide-react"
 
 import { RecentLookups } from "@/components/recent-lookups"
+import { WordOfTheDay } from "@/components/word-of-the-day"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -118,6 +120,19 @@ export function DictionarySearch() {
 
   return (
     <div className="flex w-full flex-col gap-6">
+      <WordOfTheDay favorites={favorites.items} onSelect={handleChipClick} />
+
+      <Button
+        variant="link"
+        size="sm"
+        className="self-center"
+        render={<Link href="/study" />}
+        nativeButton={false}
+      >
+        <GraduationCapIcon data-icon="inline-start" />
+        Study your favorites
+      </Button>
+
       <form onSubmit={handleSubmit}>
         <FieldGroup>
           <Field>
