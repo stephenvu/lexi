@@ -1,7 +1,7 @@
 "use client"
 
-import { useRef, useState } from "react"
-import { BookOpenIcon, SearchIcon } from "lucide-react"
+import { useRef, useState, useSyncExternalStore } from "react"
+import { BookOpenIcon, SearchIcon, Volume2Icon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -20,23 +21,48 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import type { DefinitionResult } from "@/lib/gemini"
 
+// Browser speech-synthesis support never changes after mount but isn't
+// knowable during SSR — useSyncExternalStore gives a hydration-safe way to
+// read it (server snapshot = false, matching the SSR pass) without the
+// extra-render anti-pattern of setState-in-an-effect.
+function subscribeToNothing() {
+  return () => {}
+}
+function getSpeechSupport() {
+  return typeof window !== "undefined" && "speechSynthesis" in window
+}
+function getServerSpeechSupport() {
+  return false
+}
+
 type State =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "success"; data: DefinitionResult }
-  | { status: "not-found"; message: string | null }
+  | { status: "not-found"; message: string | null; suggestion: string | null }
   | { status: "error"; message: string }
 
 export function DictionarySearch() {
+  const [word, setWord] = useState("")
   const [state, setState] = useState<State>({ status: "idle" })
   const abortRef = useRef<AbortController | null>(null)
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  const canSpeak = useSyncExternalStore(subscribeToNothing, getSpeechSupport, getServerSpeechSupport)
+  const [isSpeaking, setIsSpeaking] = useState(false)
 
-    const formData = new FormData(event.currentTarget)
-    const word = String(formData.get("word") ?? "").trim()
-    if (!word) return
+  function speak(text: string) {
+    if (!canSpeak) return
+    window.speechSynthesis.cancel() // don't let overlapping utterances stack
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.onstart = () => setIsSpeaking(true)
+    utterance.onend = () => setIsSpeaking(false)
+    utterance.onerror = () => setIsSpeaking(false)
+    window.speechSynthesis.speak(utterance)
+  }
+
+  async function runSearch(rawWord: string) {
+    const trimmed = rawWord.trim()
+    if (!trimmed) return
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -45,7 +71,7 @@ export function DictionarySearch() {
     setState({ status: "loading" })
 
     try {
-      const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
+      const response = await fetch(`/api/define?word=${encodeURIComponent(trimmed)}`, {
         signal: controller.signal,
       })
       const body = await response.json()
@@ -57,7 +83,7 @@ export function DictionarySearch() {
 
       const data = body.data as DefinitionResult
       if (!data.found) {
-        setState({ status: "not-found", message: data.message })
+        setState({ status: "not-found", message: data.message, suggestion: data.suggestion })
         return
       }
 
@@ -66,6 +92,18 @@ export function DictionarySearch() {
       if ((error as Error).name === "AbortError") return
       setState({ status: "error", message: "Something went wrong. Please try again." })
     }
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    runSearch(word)
+  }
+
+  // Shared by synonym/antonym chips and the "did you mean" suggestion —
+  // updates the search box to match, then re-runs the same lookup path.
+  function handleChipClick(chipWord: string) {
+    setWord(chipWord)
+    runSearch(chipWord)
   }
 
   const isLoading = state.status === "loading"
@@ -81,6 +119,8 @@ export function DictionarySearch() {
                 placeholder="Look up a word…"
                 autoComplete="off"
                 disabled={isLoading}
+                value={word}
+                onChange={(event) => setWord(event.target.value)}
               />
               <InputGroupAddon align="inline-end">
                 <Button type="submit" size="sm" disabled={isLoading}>
@@ -109,6 +149,22 @@ export function DictionarySearch() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">{state.data.word}</CardTitle>
+            {state.data.ipa && (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <span className="font-mono text-sm">{state.data.ipa}</span>
+                {canSpeak && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => speak(state.data.word)}
+                    aria-label={`Play pronunciation of ${state.data.word}`}
+                  >
+                    {isSpeaking ? <Spinner /> : <Volume2Icon />}
+                  </Button>
+                )}
+              </div>
+            )}
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {state.data.entries.map((entry, index) => (
@@ -118,6 +174,29 @@ export function DictionarySearch() {
                 <p className="text-sm text-muted-foreground italic">
                   &ldquo;{entry.example}&rdquo;
                 </p>
+                {entry.usageNote && (
+                  <p className="text-sm text-muted-foreground">{entry.usageNote}</p>
+                )}
+                {entry.synonyms.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Synonyms:</span>
+                    {entry.synonyms.map((synonym) => (
+                      <button key={synonym} type="button" onClick={() => handleChipClick(synonym)}>
+                        <Badge variant="outline">{synonym}</Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {entry.antonyms.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Antonyms:</span>
+                    {entry.antonyms.map((antonym) => (
+                      <button key={antonym} type="button" onClick={() => handleChipClick(antonym)}>
+                        <Badge variant="outline">{antonym}</Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </CardContent>
@@ -135,6 +214,13 @@ export function DictionarySearch() {
               {state.message ?? "That doesn't look like a word we can define."}
             </EmptyDescription>
           </EmptyHeader>
+          {state.suggestion && (
+            <EmptyContent>
+              <Button type="button" variant="outline" size="sm" onClick={() => handleChipClick(state.suggestion!)}>
+                Did you mean &ldquo;{state.suggestion}&rdquo;?
+              </Button>
+            </EmptyContent>
+          )}
         </Empty>
       )}
 

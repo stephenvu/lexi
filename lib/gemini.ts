@@ -24,12 +24,17 @@ export type DefinitionEntry = {
   partOfSpeech: string
   definition: string
   example: string
+  synonyms: string[]
+  antonyms: string[]
+  usageNote: string | null
 }
 
 export type DefinitionResult = {
   word: string
   found: boolean
   message: string | null
+  ipa: string | null
+  suggestion: string | null
   entries: DefinitionEntry[]
 }
 
@@ -52,6 +57,8 @@ const responseSchema = {
     found: { type: Type.BOOLEAN },
     word: { type: Type.STRING },
     message: { type: Type.STRING, nullable: true },
+    ipa: { type: Type.STRING, nullable: true },
+    suggestion: { type: Type.STRING, nullable: true },
     entries: {
       type: Type.ARRAY,
       items: {
@@ -60,8 +67,11 @@ const responseSchema = {
           partOfSpeech: { type: Type.STRING, enum: [...PARTS_OF_SPEECH] },
           definition: { type: Type.STRING },
           example: { type: Type.STRING },
+          synonyms: { type: Type.ARRAY, items: { type: Type.STRING } },
+          antonyms: { type: Type.ARRAY, items: { type: Type.STRING } },
+          usageNote: { type: Type.STRING, nullable: true },
         },
-        required: ["partOfSpeech", "definition", "example"],
+        required: ["partOfSpeech", "definition", "example", "synonyms", "antonyms"],
       },
     },
   },
@@ -69,8 +79,12 @@ const responseSchema = {
 }
 
 const SYSTEM_INSTRUCTION = `You are a concise, accurate dictionary. Given a single word or short phrase:
-- If it is a recognizable English word or phrase, set found=true and return up to 5 entries, one per distinct sense, each with its part of speech, a one-sentence definition, and one natural example sentence using the word.
-- If it is not a recognizable English word (e.g. gibberish, a typo with no clear intended word, or empty), set found=false, return an empty entries array, and give a short one-sentence explanation in message.
+- If it is a recognizable English word or phrase, set found=true and return up to 5 entries, one per distinct sense, each with:
+  - its part of speech, a one-sentence definition, and one natural example sentence using the word
+  - up to 5 synonyms and up to 5 antonyms for that sense — return an empty array for either if none fit naturally; don't force weak matches
+  - a short usageNote (e.g. "formal", "informal", "often used ironically") only when the word has a notable register, otherwise null
+  Also set the word-level "ipa" to a standard IPA pronunciation transcription (e.g. "/ɪˈfɛmərəl/"), or null if genuinely unclear (e.g. unusual proper nouns).
+- If it is not a recognizable English word (e.g. gibberish, a typo with no clear intended word, or empty), set found=false, return an empty entries array, and give a short one-sentence explanation in message. If — and only if — you are reasonably confident the input is a typo for a specific real word, set "suggestion" to that word's standard spelling; otherwise leave it null. Never guess at a suggestion you aren't confident in.
 Always echo the headword back in "word" using its standard casing/spelling.`
 
 export class InvalidWordError extends Error {}
@@ -113,7 +127,16 @@ export async function generateDefinition(word: string): Promise<DefinitionResult
     word: parsed.word || word,
     found: parsed.found,
     message: parsed.message ?? null,
-    entries: parsed.entries,
+    ipa: parsed.ipa ?? null,
+    suggestion: parsed.suggestion ?? null,
+    entries: parsed.entries.map((entry) => ({
+      partOfSpeech: entry.partOfSpeech,
+      definition: entry.definition,
+      example: entry.example,
+      synonyms: entry.synonyms ?? [],
+      antonyms: entry.antonyms ?? [],
+      usageNote: entry.usageNote ?? null,
+    })),
   }
 }
 

@@ -15,13 +15,30 @@ type CachedDefinition = DefinitionResult & {
   createdAt: FirebaseFirestore.Timestamp
 }
 
+// Defensive against cache docs written before a schema field existed (e.g.
+// the Richer Lookups fields) — always-possibly-absent, so default rather
+// than let the UI see `undefined`.
 async function readCache(key: string): Promise<DefinitionResult | null> {
   const snapshot = await db.collection(COLLECTION).doc(key).get()
   if (!snapshot.exists) {
     return null
   }
   const data = snapshot.data() as CachedDefinition
-  return { word: data.word, found: data.found, message: data.message, entries: data.entries }
+  return {
+    word: data.word,
+    found: data.found,
+    message: data.message ?? null,
+    ipa: data.ipa ?? null,
+    suggestion: data.suggestion ?? null,
+    entries: (data.entries ?? []).map((entry) => ({
+      partOfSpeech: entry.partOfSpeech,
+      definition: entry.definition,
+      example: entry.example,
+      synonyms: entry.synonyms ?? [],
+      antonyms: entry.antonyms ?? [],
+      usageNote: entry.usageNote ?? null,
+    })),
+  }
 }
 
 async function writeCache(key: string, result: DefinitionResult): Promise<void> {
