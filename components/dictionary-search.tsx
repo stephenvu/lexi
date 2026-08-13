@@ -179,7 +179,10 @@ export function DictionarySearch() {
       {state.status === "success" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">{state.data.word}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              {state.data.word}
+              {state.data.cefrLevel && <Badge variant="outline">{state.data.cefrLevel}</Badge>}
+            </CardTitle>
             <CardAction>
               <Button
                 type="button"

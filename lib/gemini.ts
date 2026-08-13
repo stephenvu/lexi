@@ -34,6 +34,7 @@ export type DefinitionResult = {
   found: boolean
   message: string | null
   ipa: string | null
+  cefrLevel: string | null
   suggestion: string | null
   entries: DefinitionEntry[]
 }
@@ -51,6 +52,8 @@ const PARTS_OF_SPEECH = [
   "other",
 ] as const
 
+const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const
+
 const responseSchema = {
   type: Type.OBJECT,
   properties: {
@@ -58,6 +61,7 @@ const responseSchema = {
     word: { type: Type.STRING },
     message: { type: Type.STRING, nullable: true },
     ipa: { type: Type.STRING, nullable: true },
+    cefrLevel: { type: Type.STRING, enum: [...CEFR_LEVELS], nullable: true },
     suggestion: { type: Type.STRING, nullable: true },
     entries: {
       type: Type.ARRAY,
@@ -83,7 +87,7 @@ const SYSTEM_INSTRUCTION = `You are a concise, accurate dictionary. Given a sing
   - its part of speech, a one-sentence definition, and one natural example sentence using the word
   - up to 5 synonyms and up to 5 antonyms for that sense — return an empty array for either if none fit naturally; don't force weak matches
   - a short usageNote (e.g. "formal", "informal", "often used ironically") only when the word has a notable register, otherwise null
-  Also set the word-level "ipa" to a standard IPA pronunciation transcription (e.g. "/ɪˈfɛmərəl/"), or null if genuinely unclear (e.g. unusual proper nouns).
+  Also set the word-level "ipa" to a standard IPA pronunciation transcription (e.g. "/ɪˈfɛmərəl/"), or null if genuinely unclear (e.g. unusual proper nouns). Also set the word-level "cefrLevel" to its CEFR difficulty rating (A1 = beginner ... C2 = proficient) per the standard CEFR framework, or null if you can't confidently classify it (e.g. proper nouns, pure technical jargon with no real vocabulary-difficulty tier).
 - If it is not a recognizable English word (e.g. gibberish, a typo with no clear intended word, or empty), set found=false, return an empty entries array, and give a short one-sentence explanation in message. If — and only if — you are reasonably confident the input is a typo for a specific real word, set "suggestion" to that word's standard spelling; otherwise leave it null. Never guess at a suggestion you aren't confident in.
 Always echo the headword back in "word" using its standard casing/spelling.`
 
@@ -128,6 +132,7 @@ export async function generateDefinition(word: string): Promise<DefinitionResult
     found: parsed.found,
     message: parsed.message ?? null,
     ipa: parsed.ipa ?? null,
+    cefrLevel: parsed.cefrLevel ?? null,
     suggestion: parsed.suggestion ?? null,
     entries: parsed.entries.map((entry) => ({
       partOfSpeech: entry.partOfSpeech,

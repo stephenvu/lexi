@@ -30,6 +30,7 @@ async function readCache(key: string): Promise<DefinitionResult | null> {
     found: data.found,
     message: data.message ?? null,
     ipa: data.ipa ?? null,
+    cefrLevel: data.cefrLevel ?? null,
     suggestion: data.suggestion ?? null,
     entries: (data.entries ?? []).map((entry) => ({
       partOfSpeech: entry.partOfSpeech,

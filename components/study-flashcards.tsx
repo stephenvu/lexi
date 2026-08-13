@@ -141,7 +141,10 @@ export function StudyFlashcards() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">{card.word}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                {card.word}
+                {card.cefrLevel && <Badge variant="outline">{card.cefrLevel}</Badge>}
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex min-h-32 flex-col gap-2">
               {flipped ? (
