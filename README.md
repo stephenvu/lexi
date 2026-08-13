@@ -13,13 +13,15 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 - **Graceful "not found" handling** — gibberish/unrecognized input gets a distinct empty state with an explanation, not an error.
 - **Cached lookups** — results are cached in Firestore by normalized word, so repeat lookups of the same word are near-instant instead of re-calling Gemini.
 - **Deliberate search-on-submit** — looks up on Enter/click only (never live-as-you-type), avoiding a Gemini call per keystroke; a new search cancels a still-in-flight one.
+- **Richer lookups** — synonyms/antonyms, pronunciation (IPA + audio), usage notes, "did you mean" fallback for typos.
+- **Saved words & history** — favorite words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box. Local-only (`localStorage`), not synced across devices.
 
 ### Planned / beyond current MVP scope
 
 Deliberately left out of the first build to keep scope tight — listed here as a roadmap, not a promise:
 
-- **Richer lookups** — synonyms/antonyms, pronunciation (IPA + audio), etymology, usage notes, related/confusable words, "did you mean" fallback for typos.
-- **Saved words & history** — favoriting words and viewing past searches, either local-only (browser storage) or synced via accounts.
+- **Etymology & related/confusable words** — deferred from the Richer Lookups pass; see `specs/richer-lookups.md`.
+- **Accounts & cross-device sync** — would replace today's local-only history/favorites.
 - **Study features** — a word-of-the-day, and flashcards/quizzes generated from saved words.
 - **Abuse/cost guardrails** — rate limiting or Firebase App Check, since novel-word lookups bypass the cache and hit Gemini billing directly today.
 

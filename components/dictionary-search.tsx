@@ -1,12 +1,13 @@
 "use client"
 
 import { useRef, useState, useSyncExternalStore } from "react"
-import { BookOpenIcon, SearchIcon, Volume2Icon } from "lucide-react"
+import { BookOpenIcon, SearchIcon, StarIcon, Volume2Icon } from "lucide-react"
 
+import { RecentLookups } from "@/components/recent-lookups"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Empty,
   EmptyContent,
@@ -20,6 +21,9 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import type { DefinitionResult } from "@/lib/gemini"
+import { usePersistedList } from "@/lib/use-persisted-list"
+
+const HISTORY_CAP = 20
 
 // Browser speech-synthesis support never changes after mount but isn't
 // knowable during SSR — useSyncExternalStore gives a hydration-safe way to
@@ -49,6 +53,9 @@ export function DictionarySearch() {
 
   const canSpeak = useSyncExternalStore(subscribeToNothing, getSpeechSupport, getServerSpeechSupport)
   const [isSpeaking, setIsSpeaking] = useState(false)
+
+  const history = usePersistedList("lexi.history", { cap: HISTORY_CAP })
+  const favorites = usePersistedList("lexi.favorites")
 
   function speak(text: string) {
     if (!canSpeak) return
@@ -87,6 +94,7 @@ export function DictionarySearch() {
         return
       }
 
+      history.add(data.word)
       setState({ status: "success", data })
     } catch (error) {
       if ((error as Error).name === "AbortError") return
@@ -137,6 +145,14 @@ export function DictionarySearch() {
         </FieldGroup>
       </form>
 
+      <RecentLookups
+        favorites={favorites.items}
+        history={history.items}
+        onSelect={handleChipClick}
+        onRemoveFavorite={favorites.remove}
+        onRemoveHistory={history.remove}
+      />
+
       {state.status === "loading" && (
         <div className="flex flex-col gap-3">
           <Skeleton className="h-7 w-40" />
@@ -149,6 +165,25 @@ export function DictionarySearch() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">{state.data.word}</CardTitle>
+            <CardAction>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() =>
+                  favorites.has(state.data.word)
+                    ? favorites.remove(state.data.word)
+                    : favorites.add(state.data.word)
+                }
+                aria-label={
+                  favorites.has(state.data.word)
+                    ? `Remove ${state.data.word} from favorites`
+                    : `Save ${state.data.word} to favorites`
+                }
+              >
+                <StarIcon fill={favorites.has(state.data.word) ? "currentColor" : "none"} />
+              </Button>
+            </CardAction>
             {state.data.ipa && (
               <div className="flex items-center gap-1 text-muted-foreground">
                 <span className="font-mono text-sm">{state.data.ipa}</span>
