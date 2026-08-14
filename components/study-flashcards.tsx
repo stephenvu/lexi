@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import {
-  ArrowLeftIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  GraduationCapIcon,
-  RotateCcwIcon,
-} from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, GraduationCapIcon, RotateCcwIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -110,18 +104,18 @@ export function StudyFlashcards() {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-semibold">Study</h1>
-        <Button variant="ghost" size="sm" render={<Link href="/" />} nativeButton={false}>
-          <ArrowLeftIcon data-icon="inline-start" />
-          Back to search
-        </Button>
-      </div>
+      <h1 className="text-[34px] leading-[41px] font-bold tracking-[-0.4px]">Study</h1>
 
-      {!isEmpty && deckState.status === "loading" && <Skeleton className="h-48 w-full" />}
+      {!isEmpty && deckState.status === "loading" && (
+        <Card>
+          <CardContent className="flex flex-col gap-3.5">
+            <Skeleton className="h-48 w-full" />
+          </CardContent>
+        </Card>
+      )}
 
       {isEmpty && (
-        <Empty className="border">
+        <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <GraduationCapIcon />
@@ -143,13 +137,15 @@ export function StudyFlashcards() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-2xl">
                 {card.word}
-                {card.cefrLevel && <Badge variant="outline">{card.cefrLevel}</Badge>}
+                {card.cefrLevel && <Badge variant="secondary">{card.cefrLevel}</Badge>}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex min-h-32 flex-col gap-2">
               {flipped ? (
                 <>
-                  <Badge variant="secondary">{card.entries[0].partOfSpeech}</Badge>
+                  <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    {card.entries[0].partOfSpeech}
+                  </span>
                   <p>{card.entries[0].definition}</p>
                   {card.entries[0].translatedDefinition && (
                     <p className="text-sm text-muted-foreground">
@@ -175,14 +171,14 @@ export function StudyFlashcards() {
           </Card>
 
           <div className="flex items-center justify-between">
-            <Button type="button" variant="outline" size="sm" onClick={previous} disabled={index === 0}>
+            <Button type="button" variant="glass" size="sm" className="rounded-full px-4" onClick={previous} disabled={index === 0}>
               <ChevronLeftIcon data-icon="inline-start" />
               Previous
             </Button>
             <span className="text-sm text-muted-foreground">
               {index + 1} / {deckState.status === "ready" ? deckState.deck.length : 0}
             </span>
-            <Button type="button" variant="outline" size="sm" onClick={next}>
+            <Button type="button" variant="glass" size="sm" className="rounded-full px-4" onClick={next}>
               Next
               <ChevronRightIcon data-icon="inline-end" />
             </Button>
@@ -191,7 +187,7 @@ export function StudyFlashcards() {
       )}
 
       {finished && (
-        <Empty className="border">
+        <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <GraduationCapIcon />

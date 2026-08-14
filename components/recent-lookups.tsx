@@ -1,40 +1,34 @@
 "use client"
 
-import { StarIcon, XIcon } from "lucide-react"
+import { XIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 
 type RecentLookupsProps = {
-  favorites: string[]
   history: string[]
   onSelect: (word: string) => void
-  onRemoveFavorite: (word: string) => void
-  onRemoveHistory: (word: string) => void
+  onRemove: (word: string) => void
 }
 
-/** A slim chip strip: favorites first, then recent history (deduped against
- * favorites so a saved word doesn't show up twice). Renders nothing when
- * both lists are empty. */
-export function RecentLookups({
-  favorites,
-  history,
-  onSelect,
-  onRemoveFavorite,
-  onRemoveHistory,
-}: RecentLookupsProps) {
-  const recentOnly = history.filter((word) => !favorites.includes(word))
+const MAX_ITEMS = 6
 
-  if (favorites.length === 0 && recentOnly.length === 0) {
+/** A slim, single-line chip strip of recent lookups — horizontally
+ * scrollable if it overflows, with the scrollbar itself hidden (reads
+ * better on mobile), capped to the most recent 6. Favorited words show up
+ * here too (every lookup is logged to history, favorited or not) with no
+ * special styling — this strip doesn't distinguish them. Renders nothing
+ * when history is empty. */
+export function RecentLookups({ history, onSelect, onRemove }: RecentLookupsProps) {
+  if (history.length === 0) {
     return null
   }
 
+  const items = history.slice(0, MAX_ITEMS)
+
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {favorites.map((word) => (
-        <Chip key={`fav-${word}`} word={word} favorite onSelect={onSelect} onRemove={onRemoveFavorite} />
-      ))}
-      {recentOnly.map((word) => (
-        <Chip key={`hist-${word}`} word={word} onSelect={onSelect} onRemove={onRemoveHistory} />
+    <div className="scrollbar-hide flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1">
+      {items.map((word) => (
+        <Chip key={word} word={word} onSelect={onSelect} onRemove={onRemove} />
       ))}
     </div>
   )
@@ -42,19 +36,16 @@ export function RecentLookups({
 
 function Chip({
   word,
-  favorite,
   onSelect,
   onRemove,
 }: {
   word: string
-  favorite?: boolean
   onSelect: (word: string) => void
   onRemove: (word: string) => void
 }) {
   return (
-    <Badge variant={favorite ? "default" : "outline"} className="gap-1 pr-1">
+    <Badge variant="ghost" className="glass-chip text-foreground shrink-0 gap-1 pr-1">
       <button type="button" onClick={() => onSelect(word)} className="flex items-center gap-1">
-        {favorite && <StarIcon className="size-3" fill="currentColor" />}
         {word}
       </button>
       <button
