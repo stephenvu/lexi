@@ -32,6 +32,7 @@ async function readCache(key: string): Promise<DefinitionResult | null> {
     ipa: data.ipa ?? null,
     cefrLevel: data.cefrLevel ?? null,
     suggestion: data.suggestion ?? null,
+    translationLanguage: data.translationLanguage ?? null,
     entries: (data.entries ?? []).map((entry) => ({
       partOfSpeech: entry.partOfSpeech,
       definition: entry.definition,
@@ -39,6 +40,8 @@ async function readCache(key: string): Promise<DefinitionResult | null> {
       synonyms: entry.synonyms ?? [],
       antonyms: entry.antonyms ?? [],
       usageNote: entry.usageNote ?? null,
+      translatedDefinition: entry.translatedDefinition ?? null,
+      translatedWord: entry.translatedWord ?? null,
     })),
   }
 }

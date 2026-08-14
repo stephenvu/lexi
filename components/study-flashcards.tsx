@@ -151,6 +151,13 @@ export function StudyFlashcards() {
                 <>
                   <Badge variant="secondary">{card.entries[0].partOfSpeech}</Badge>
                   <p>{card.entries[0].definition}</p>
+                  {card.entries[0].translatedDefinition && (
+                    <p className="text-sm text-muted-foreground">
+                      {card.entries[0].translatedWord
+                        ? `${card.entries[0].translatedWord} — ${card.entries[0].translatedDefinition}`
+                        : card.entries[0].translatedDefinition}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground italic">
                     &ldquo;{card.entries[0].example}&rdquo;
                   </p>

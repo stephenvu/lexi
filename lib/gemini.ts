@@ -5,6 +5,11 @@ import { GoogleGenAI, Type } from "@google/genai"
 // for the current recommended id.
 const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite"
 
+// Hardcoded default for now — a future Settings page would make this
+// user-configurable, at which point this env var becomes the fallback
+// rather than the only source.
+const SECOND_LANGUAGE = process.env.SECOND_LANGUAGE ?? "Vietnamese"
+
 const MAX_WORD_LENGTH = 100
 
 let client: GoogleGenAI | null = null
@@ -27,6 +32,8 @@ export type DefinitionEntry = {
   synonyms: string[]
   antonyms: string[]
   usageNote: string | null
+  translatedDefinition: string | null
+  translatedWord: string | null
 }
 
 export type DefinitionResult = {
@@ -36,6 +43,7 @@ export type DefinitionResult = {
   ipa: string | null
   cefrLevel: string | null
   suggestion: string | null
+  translationLanguage: string | null
   entries: DefinitionEntry[]
 }
 
@@ -74,6 +82,8 @@ const responseSchema = {
           synonyms: { type: Type.ARRAY, items: { type: Type.STRING } },
           antonyms: { type: Type.ARRAY, items: { type: Type.STRING } },
           usageNote: { type: Type.STRING, nullable: true },
+          translatedDefinition: { type: Type.STRING, nullable: true },
+          translatedWord: { type: Type.STRING, nullable: true },
         },
         required: ["partOfSpeech", "definition", "example", "synonyms", "antonyms"],
       },
@@ -87,6 +97,8 @@ const SYSTEM_INSTRUCTION = `You are a concise, accurate dictionary. Given a sing
   - its part of speech, a one-sentence definition, and one natural example sentence using the word
   - up to 5 synonyms and up to 5 antonyms for that sense — return an empty array for either if none fit naturally; don't force weak matches
   - a short usageNote (e.g. "formal", "informal", "often used ironically") only when the word has a notable register, otherwise null
+  - a translatedDefinition: the definition translated into ${SECOND_LANGUAGE}, or null if a sensible translation isn't possible for that content
+  - a translatedWord: a short equivalent word or phrase for this specific sense in ${SECOND_LANGUAGE} (not a full sentence — a polysemous word can need a different equivalent per sense), or null if none translates sensibly
   Also set the word-level "ipa" to a standard IPA pronunciation transcription (e.g. "/ɪˈfɛmərəl/"), or null if genuinely unclear (e.g. unusual proper nouns). Also set the word-level "cefrLevel" to its CEFR difficulty rating (A1 = beginner ... C2 = proficient) per the standard CEFR framework, or null if you can't confidently classify it (e.g. proper nouns, pure technical jargon with no real vocabulary-difficulty tier).
 - If it is not a recognizable English word (e.g. gibberish, a typo with no clear intended word, or empty), set found=false, return an empty entries array, and give a short one-sentence explanation in message. If — and only if — you are reasonably confident the input is a typo for a specific real word, set "suggestion" to that word's standard spelling; otherwise leave it null. Never guess at a suggestion you aren't confident in.
 Always echo the headword back in "word" using its standard casing/spelling.`
@@ -134,6 +146,9 @@ export async function generateDefinition(word: string): Promise<DefinitionResult
     ipa: parsed.ipa ?? null,
     cefrLevel: parsed.cefrLevel ?? null,
     suggestion: parsed.suggestion ?? null,
+    // Always the language configured for *this* call, not echoed from
+    // Gemini — we already know what we asked it to translate into.
+    translationLanguage: SECOND_LANGUAGE,
     entries: parsed.entries.map((entry) => ({
       partOfSpeech: entry.partOfSpeech,
       definition: entry.definition,
@@ -141,6 +156,8 @@ export async function generateDefinition(word: string): Promise<DefinitionResult
       synonyms: entry.synonyms ?? [],
       antonyms: entry.antonyms ?? [],
       usageNote: entry.usageNote ?? null,
+      translatedDefinition: entry.translatedDefinition ?? null,
+      translatedWord: entry.translatedWord ?? null,
     })),
   }
 }

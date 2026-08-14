@@ -224,6 +224,13 @@ export function DictionarySearch() {
               <div key={index} className="flex flex-col gap-1">
                 <Badge variant="secondary">{entry.partOfSpeech}</Badge>
                 <p>{entry.definition}</p>
+                {entry.translatedDefinition && (
+                  <p className="text-sm text-muted-foreground">
+                    {entry.translatedWord
+                      ? `${entry.translatedWord} — ${entry.translatedDefinition}`
+                      : entry.translatedDefinition}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground italic">
                   &ldquo;{entry.example}&rdquo;
                 </p>

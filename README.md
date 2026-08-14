@@ -14,6 +14,8 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 - **Cached lookups** — results are cached in Firestore by normalized word, so repeat lookups of the same word are near-instant instead of re-calling Gemini.
 - **Deliberate search-on-submit** — looks up on Enter/click only (never live-as-you-type), avoiding a Gemini call per keystroke; a new search cancels a still-in-flight one.
 - **Richer lookups** — synonyms/antonyms, pronunciation (IPA + audio), usage notes, "did you mean" fallback for typos.
+- **Difficulty indicator** — each word labeled with its CEFR level (A1–C2), returned by Gemini as part of the same definition response. Shown on both the search result card and flashcards.
+- **Bilingual definitions** — each sense's definition also translated into a second language (Vietnamese by default), returned by Gemini as part of the same response. Hardcoded for now via `SECOND_LANGUAGE`; a future Settings page would make it user-configurable.
 - **Saved words & history** — favorite words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box. Local-only (`localStorage`), not synced across devices.
 - **Study features** — a word-of-the-day drawn from your favorites, and a `/study` flashcard deck through them. See `specs/study-features.md`.
 - **Cost safety net** — new-word lookups (the ones that actually call Gemini; repeat/cached lookups are unaffected) are rate-limited per IP in production, since this is a public search box with no accounts. A safety net against a runaway bill, not attacker-resistant abuse prevention — see the "Cost safety net" note under Deploy below.
@@ -24,6 +26,7 @@ Deliberately left out of the first build to keep scope tight — listed here as 
 
 - **Etymology & related/confusable words** — deferred from the Richer Lookups pass; see `specs/richer-lookups.md`.
 - **Accounts & cross-device sync** — would replace today's local-only history/favorites.
+- **Settings page** — user-configurable second language for bilingual definitions (currently hardcoded to Vietnamese via `SECOND_LANGUAGE`), and a per-user replacement for today's env-var-only config.
 - **Firebase App Check** — a stronger, attacker-resistant anti-abuse layer than the current per-IP rate limit, at the cost of the app's first client-side Firebase SDK dependency plus a reCAPTCHA registration.
 
 ## Prerequisites
@@ -45,6 +48,9 @@ Deliberately left out of the first build to keep scope tight — listed here as 
    # Optional — new-word lookups per IP per hour before a 429. Defaults to
    # 20. Only enforced when NODE_ENV=production (never in local dev).
    RATE_LIMIT_MAX_PER_HOUR=20
+   # Optional — the second language for bilingual definitions. Defaults to
+   # Vietnamese. Only applies to newly-generated (cache-miss) lookups.
+   SECOND_LANGUAGE=Vietnamese
    ```
 3. Set up local Firestore credentials via Application Default Credentials:
    ```bash
