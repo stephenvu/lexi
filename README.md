@@ -21,6 +21,7 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 - **Saved words & history** — favorite words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box. Local-only (`localStorage`), not synced across devices.
 - **Study features** — a word-of-the-day drawn from your favorites, and a `/study` flashcard deck through them. See `specs/study-features.md`.
 - **Cost safety net** — new-word lookups (the ones that actually call Gemini; repeat/cached lookups are unaffected) are rate-limited per IP in production, since this is a public search box with no accounts. A safety net against a runaway bill, not attacker-resistant abuse prevention — see the "Cost safety net" note under Deploy below.
+- **Installable (PWA)** — a web app manifest + a minimal service worker make Lexi installable to a home screen/desktop via the browser's native install affordance (no custom install button — [Next.js's own guidance](https://nextjs.org/docs/app/guides/progressive-web-apps) is against `beforeinstallprompt`, since it doesn't work on Safari iOS). Offline support and push notifications are separate, unimplemented features.
 
 ### Planned / beyond current MVP scope
 
