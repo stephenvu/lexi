@@ -2,6 +2,8 @@
 
 An AI-powered English dictionary for language learners, built with Next.js and Gemini Flash Lite.
 
+**Live:** [lexi--lexi-gemini.asia-southeast1.hosted.app](https://lexi--lexi-gemini.asia-southeast1.hosted.app)
+
 See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integration, the Firestore cache, the API route, and the UI).
 
 ## Features
@@ -57,7 +59,7 @@ Deliberately left out of the first build to keep scope tight — listed here as 
    gcloud auth application-default login
    ```
    `GOOGLE_CLOUD_PROJECT` above is required alongside this — user ADC credentials (unlike a service account) don't carry a project id on their own.
-4. Set your real Firebase project id in `.firebaserc` (currently a placeholder).
+4. `.firebaserc` already points at this project's Firebase project (`lexi-gemini`) and the live backend is deployed there via GitHub — replace the project id here only if you're deploying your own copy under a different Firebase project.
 
 ## Run
 
@@ -69,10 +71,27 @@ Open [http://localhost:3333](http://localhost:3333) (the dev server runs on port
 
 ## Deploy
 
-This app targets [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) (config in `apphosting.yaml`/`firebase.json`):
+This app targets [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) (config in `apphosting.yaml`/`firebase.json`), and the backend is connected to this repo on GitHub — **pushing to `main` triggers an automatic build and rollout**. No manual deploy step for day-to-day changes.
+
+### Setting secrets (Firebase CLI)
+
+Secrets (like `GEMINI_API_KEY`) aren't part of the GitHub-triggered build — they live in Secret Manager and are managed separately, once up front and again whenever a value changes:
 
 ```bash
 firebase apphosting:secrets:set GEMINI_API_KEY
+```
+
+This prompts for the value, stores it in Secret Manager, and normally grants the App Hosting backend's service account access automatically. If a rollout ever can't read a secret (there's a known rough edge in `firebase-tools` around this), grant access explicitly and redeploy:
+
+```bash
+firebase apphosting:secrets:grantaccess GEMINI_API_KEY --backend=lexi
+```
+
+A secret's *value* only takes effect on the **next rollout** — after setting or changing one, push a commit (or trigger a manual rollout from the Firebase Console) to pick it up.
+
+To deploy without going through GitHub (e.g. to test a change before pushing, or to redeploy after a secret change):
+
+```bash
 firebase deploy --only apphosting
 ```
 
