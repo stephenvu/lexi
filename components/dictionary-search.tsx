@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState } from "react";
 import { BookOpenIcon, SearchIcon, StarIcon, Volume2Icon } from "lucide-react";
 
 import { RecentLookups } from "@/components/recent-lookups";
@@ -33,23 +33,10 @@ import { Spinner } from "@/components/ui/spinner";
 import type { DefinitionResult } from "@/lib/gemini";
 import { cn } from "@/lib/utils";
 import { usePersistedList } from "@/lib/use-persisted-list";
+import { useSpeech } from "@/lib/use-speech";
 import { capitalizeFirstLetter } from "@/lib/utils";
 
 const HISTORY_CAP = 20;
-
-// Browser speech-synthesis support never changes after mount but isn't
-// knowable during SSR — useSyncExternalStore gives a hydration-safe way to
-// read it (server snapshot = false, matching the SSR pass) without the
-// extra-render anti-pattern of setState-in-an-effect.
-function subscribeToNothing() {
-  return () => {};
-}
-function getSpeechSupport() {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
-}
-function getServerSpeechSupport() {
-  return false;
-}
 
 type State =
   | { status: "idle" }
@@ -63,25 +50,10 @@ export function DictionarySearch() {
   const [state, setState] = useState<State>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
 
-  const canSpeak = useSyncExternalStore(
-    subscribeToNothing,
-    getSpeechSupport,
-    getServerSpeechSupport,
-  );
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const { canSpeak, isSpeaking, speak } = useSpeech();
 
   const history = usePersistedList("lexi.history", { cap: HISTORY_CAP });
   const favorites = usePersistedList("lexi.favorites");
-
-  function speak(text: string) {
-    if (!canSpeak) return;
-    window.speechSynthesis.cancel(); // don't let overlapping utterances stack
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }
 
   async function runSearch(rawWord: string) {
     const trimmed = rawWord.trim();

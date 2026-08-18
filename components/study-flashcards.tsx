@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ChevronLeftIcon, ChevronRightIcon, GraduationCapIcon, RotateCcwIcon } from "lucide-react"
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  GraduationCapIcon,
+  RotateCcwIcon,
+  Volume2Icon,
+} from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Empty,
   EmptyContent,
@@ -16,8 +22,11 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
 import type { DefinitionResult } from "@/lib/gemini"
 import { usePersistedList } from "@/lib/use-persisted-list"
+import { useSpeech } from "@/lib/use-speech"
+import { capitalizeFirstLetter } from "@/lib/utils"
 
 function shuffle<T>(items: T[]): T[] {
   const copy = [...items]
@@ -40,6 +49,7 @@ export function StudyFlashcards() {
   const [deckState, setDeckState] = useState<DeckState>({ status: "loading" })
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
+  const { canSpeak, isSpeaking, speak } = useSpeech()
 
   // Pre-fetch every favorited word's (already-cached) definition, then
   // shuffle. The setState below happens after the await, inside the
@@ -134,51 +144,109 @@ export function StudyFlashcards() {
       {card && !finished && (
         <>
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                {card.word}
+            <CardContent className="flex min-h-[300px] flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  {card.entries[0].partOfSpeech}
+                </span>
                 {card.cefrLevel && <Badge variant="secondary">{card.cefrLevel}</Badge>}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex min-h-32 flex-col gap-2">
+              </div>
+
               {flipped ? (
                 <>
-                  <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                    {card.entries[0].partOfSpeech}
-                  </span>
-                  <p>{card.entries[0].definition}</p>
-                  {card.entries[0].translatedDefinition && (
-                    <p className="text-sm text-muted-foreground">
-                      {card.entries[0].translatedWord
-                        ? `${card.entries[0].translatedWord} — ${card.entries[0].translatedDefinition}`
-                        : card.entries[0].translatedDefinition}
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground italic">
-                    &ldquo;{card.entries[0].example}&rdquo;
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-heading text-[30px] leading-tight font-bold">
+                        {capitalizeFirstLetter(card.word)}
+                      </span>
+                      {card.ipa && (
+                        <span className="font-mono text-sm text-muted-foreground">{card.ipa}</span>
+                      )}
+                    </div>
+                    {canSpeak && (
+                      <Button
+                        type="button"
+                        variant="glass"
+                        size="icon"
+                        className="size-11 shrink-0"
+                        onClick={() => speak(card.word)}
+                        aria-label={`Play pronunciation of ${card.word}`}
+                      >
+                        {isSpeaking ? <Spinner /> : <Volume2Icon />}
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-4 border-t border-[rgba(60,60,67,0.16)] pt-4">
+                    <p>{card.entries[0].definition}</p>
+
+                    {card.entries[0].translatedDefinition && (
+                      <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
+                        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                          {card.translationLanguage ?? "Translation"}
+                        </span>
+                        <p className="text-sm">
+                          {card.entries[0].translatedWord && (
+                            <span className="font-semibold">
+                              {capitalizeFirstLetter(card.entries[0].translatedWord)}
+                              {" — "}
+                            </span>
+                          )}
+                          {card.entries[0].translatedDefinition}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
+                      <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        Example
+                      </span>
+                      <p className="text-sm italic">&ldquo;{card.entries[0].example}&rdquo;</p>
+                    </div>
+                  </div>
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setFlipped(true)}
-                  className="cursor-pointer self-start text-sm text-muted-foreground underline underline-offset-4"
-                >
-                  Click to reveal
-                </button>
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 py-6 text-center">
+                  <span className="font-heading text-[44px] leading-tight font-bold">
+                    {capitalizeFirstLetter(card.word)}
+                  </span>
+                  {card.ipa && (
+                    <span className="font-mono text-muted-foreground">{card.ipa}</span>
+                  )}
+                  {canSpeak && (
+                    <Button
+                      type="button"
+                      variant="glass"
+                      size="icon"
+                      className="size-[52px]"
+                      onClick={() => speak(card.word)}
+                      aria-label={`Play pronunciation of ${card.word}`}
+                    >
+                      {isSpeaking ? <Spinner /> : <Volume2Icon />}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="glass"
+                    className="mt-4 w-full rounded-full text-foreground"
+                    onClick={() => setFlipped(true)}
+                  >
+                    Tap to reveal
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
 
           <div className="flex items-center justify-between">
-            <Button type="button" variant="glass" size="sm" className="rounded-full px-4" onClick={previous} disabled={index === 0}>
+            <Button type="button" variant="glass" size="sm" className="rounded-full px-4 text-foreground" onClick={previous} disabled={index === 0}>
               <ChevronLeftIcon data-icon="inline-start" />
               Previous
             </Button>
             <span className="text-sm text-muted-foreground">
               {index + 1} / {deckState.status === "ready" ? deckState.deck.length : 0}
             </span>
-            <Button type="button" variant="glass" size="sm" className="rounded-full px-4" onClick={next}>
+            <Button type="button" variant="glass" size="sm" className="rounded-full px-4 text-foreground" onClick={next}>
               Next
               <ChevronRightIcon data-icon="inline-end" />
             </Button>
