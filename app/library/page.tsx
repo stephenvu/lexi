@@ -1,23 +1,165 @@
-import { LibraryIcon } from "lucide-react"
+"use client"
 
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { ChevronRightIcon, LibraryIcon } from "lucide-react"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { Skeleton } from "@/components/ui/skeleton"
+import type { DefinitionResult } from "@/lib/gemini"
+import { usePersistedList } from "@/lib/use-persisted-list"
+import { capitalizeFirstLetter, cn } from "@/lib/utils"
+
+type Segment = "decks" | "saved"
+
+type SavedState =
+  | { status: "loading" }
+  | { status: "ready"; words: DefinitionResult[] }
 
 export default function LibraryPage() {
+  const [segment, setSegment] = useState<Segment>("decks")
+  const favorites = usePersistedList("lexi.favorites")
+  const isEmpty = favorites.items.length === 0
+  const [savedState, setSavedState] = useState<SavedState>({ status: "loading" })
+
+  // Same read-through pattern as the Study deck: favorites are always
+  // cached already (favoriting only happens after a successful lookup), so
+  // this is just re-fetching already-known data, not billing anything new.
+  useEffect(() => {
+    if (isEmpty) return
+
+    let cancelled = false
+
+    async function loadSaved() {
+      const results = await Promise.all(
+        favorites.items.map(async (word) => {
+          try {
+            const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`)
+            const body = await response.json()
+            return body.status === "ok" ? (body.data as DefinitionResult) : null
+          } catch {
+            return null
+          }
+        })
+      )
+
+      if (cancelled) return
+
+      const valid = results.filter((result): result is DefinitionResult => result?.found === true)
+      setSavedState({ status: "ready", words: valid })
+    }
+
+    loadSaved()
+
+    return () => {
+      cancelled = true
+    }
+  }, [favorites.items, isEmpty])
+
   return (
     <div className="flex flex-1 items-start justify-center px-4 py-16 sm:py-24">
-      <main className="flex w-full max-w-xl flex-col gap-8">
+      <main className="flex w-full max-w-xl flex-col gap-6">
         <h1 className="text-[34px] leading-[41px] font-bold tracking-[-0.4px]">Library</h1>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <LibraryIcon />
-            </EmptyMedia>
-            <EmptyTitle>Coming soon</EmptyTitle>
-            <EmptyDescription>
-              A place to browse everything you&rsquo;ve looked up is on the way.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+
+        <div className="grid grid-cols-2 gap-1 rounded-[21px] border-[0.5px] border-white/70 bg-[color-mix(in_oklch,white_44%,transparent)] p-[3px] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_6px_18px_rgba(12,32,24,0.06)] backdrop-blur-2xl backdrop-saturate-[1.8]">
+          {(
+            [
+              { key: "decks", label: "Decks" },
+              { key: "saved", label: "Saved" },
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSegment(key)}
+              className={cn(
+                "flex min-h-[38px] items-center justify-center rounded-2xl text-[15px] tracking-tight",
+                segment === key
+                  ? "bg-[color-mix(in_oklch,white_92%,transparent)] font-semibold text-foreground shadow-[0_2px_6px_rgba(12,32,24,0.1),inset_0_1px_0_rgba(255,255,255,0.9)]"
+                  : "font-medium text-muted-foreground"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {segment === "decks" && (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <LibraryIcon />
+              </EmptyMedia>
+              <EmptyTitle>Coming soon</EmptyTitle>
+              <EmptyDescription>
+                Multiple study decks are on the way — for now, all your favorites live under Study.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+
+        {segment === "saved" && isEmpty && (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <LibraryIcon />
+              </EmptyMedia>
+              <EmptyTitle>No saved words yet</EmptyTitle>
+              <EmptyDescription>
+                Favorite a word from a lookup and it will show up here.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button render={<Link href="/" />} nativeButton={false}>Go look something up</Button>
+            </EmptyContent>
+          </Empty>
+        )}
+
+        {segment === "saved" && !isEmpty && savedState.status === "loading" && (
+          <Card>
+            <CardContent className="flex flex-col gap-3.5">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </CardContent>
+          </Card>
+        )}
+
+        {segment === "saved" && !isEmpty && savedState.status === "ready" && (
+          <div className="glass-surface flex flex-col overflow-hidden rounded-[26px]">
+            {savedState.words.map((entry, index) => (
+              <Link
+                key={entry.word}
+                href={`/?word=${encodeURIComponent(entry.word)}`}
+                className={cn(
+                  "flex min-h-[60px] items-center gap-3 px-[18px] py-3.5",
+                  index < savedState.words.length - 1 && "border-b border-[rgba(60,60,67,0.14)]"
+                )}
+              >
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="font-heading text-lg font-semibold tracking-tight">
+                    {capitalizeFirstLetter(entry.word)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {entry.entries[0]?.partOfSpeech}
+                  </span>
+                </div>
+                {entry.cefrLevel && <Badge variant="secondary">{entry.cefrLevel}</Badge>}
+                <ChevronRightIcon className="size-[18px] shrink-0 text-muted-foreground/50" />
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   )

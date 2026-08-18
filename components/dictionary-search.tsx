@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BookOpenIcon, SearchIcon, StarIcon, Volume2Icon } from "lucide-react";
 
 import { RecentLookups } from "@/components/recent-lookups";
@@ -46,67 +47,92 @@ type State =
   | { status: "error"; message: string };
 
 export function DictionarySearch() {
-  const [word, setWord] = useState("");
+  const searchParams = useSearchParams();
+  // Library's Saved rows link here as `/?word=<word>` to jump straight into
+  // "the full lookup" — read once as the initial value rather than via an
+  // effect, since this is genuinely part of the component's initial render
+  // state, not an external system to synchronize with after the fact.
+  const [word, setWord] = useState(() => searchParams.get("word") ?? "");
   const [state, setState] = useState<State>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
+  const deepLinkRanRef = useRef(false);
 
   const { canSpeak, isSpeaking, speak } = useSpeech();
 
   const history = usePersistedList("lexi.history", { cap: HISTORY_CAP });
   const favorites = usePersistedList("lexi.favorites");
 
-  async function runSearch(rawWord: string) {
-    const trimmed = rawWord.trim();
-    if (!trimmed) return;
+  const runSearch = useCallback(
+    async (rawWord: string) => {
+      const trimmed = rawWord.trim();
+      if (!trimmed) return;
 
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    setState({ status: "loading" });
+      setState({ status: "loading" });
 
-    try {
-      const response = await fetch(
-        `/api/define?word=${encodeURIComponent(trimmed)}`,
-        {
-          signal: controller.signal,
-        },
-      );
-      const body = await response.json();
+      try {
+        const response = await fetch(
+          `/api/define?word=${encodeURIComponent(trimmed)}`,
+          {
+            signal: controller.signal,
+          },
+        );
+        const body = await response.json();
 
-      if (body.status !== "ok") {
+        if (body.status !== "ok") {
+          setState({
+            status: "error",
+            message: body.message ?? "Something went wrong.",
+          });
+          return;
+        }
+
+        const data = body.data as DefinitionResult;
+        if (!data.found) {
+          setState({
+            status: "not-found",
+            message: data.message,
+            suggestion: data.suggestion,
+          });
+          return;
+        }
+
+        history.add(data.word);
+        setState({ status: "success", data });
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
         setState({
           status: "error",
-          message: body.message ?? "Something went wrong.",
+          message: "Something went wrong. Please try again.",
         });
-        return;
       }
-
-      const data = body.data as DefinitionResult;
-      if (!data.found) {
-        setState({
-          status: "not-found",
-          message: data.message,
-          suggestion: data.suggestion,
-        });
-        return;
-      }
-
-      history.add(data.word);
-      setState({ status: "success", data });
-    } catch (error) {
-      if ((error as Error).name === "AbortError") return;
-      setState({
-        status: "error",
-        message: "Something went wrong. Please try again.",
-      });
-    }
-  }
+    },
+    [history],
+  );
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     runSearch(word);
   }
+
+  // Run the deep-linked search once on mount. The ref guard (not an empty
+  // dep array) is what keeps this to exactly one run even though
+  // `runSearch` is a fresh reference whenever `history` changes.
+  useEffect(() => {
+    if (deepLinkRanRef.current) return;
+    const deepLinkedWord = searchParams.get("word");
+    if (!deepLinkedWord) return;
+    deepLinkRanRef.current = true;
+    // Deferred a tick: runSearch's first action is a synchronous setState
+    // (the "loading" transition, wanted immediately for a user-submitted
+    // search), which the set-state-in-effect rule won't allow called
+    // directly from an effect body — queueMicrotask moves the call outside
+    // the effect's own synchronous execution.
+    queueMicrotask(() => runSearch(deepLinkedWord));
+  }, [searchParams, runSearch]);
 
   // Shared by synonym/antonym chips and the "did you mean" suggestion —
   // updates the search box to match, then re-runs the same lookup path.
