@@ -1,0 +1,333 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import {
+  BookOpenIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  SearchIcon,
+  StarIcon,
+  Volume2Icon,
+} from "lucide-react"
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
+import type { DefinitionResult } from "@/lib/gemini"
+import { usePersistedList } from "@/lib/use-persisted-list"
+import { useSpeech } from "@/lib/use-speech"
+import { capitalizeFirstLetter, cn } from "@/lib/utils"
+
+const HISTORY_CAP = 20
+
+type State =
+  | { status: "loading" }
+  | { status: "success"; data: DefinitionResult }
+  | { status: "not-found"; message: string | null; suggestion: string | null }
+  | { status: "error"; message: string }
+
+// The full lookup for a single word — pushed from Home's search, a recent
+// lookup, a Library Saved row, or a synonym/antonym chip tapped on this
+// same page. Rendered from app/word/[word]/page.tsx, which passes `key`
+// so navigating between words remounts fresh rather than needing an effect
+// to reset state.
+export function WordDetail({ word }: { word: string }) {
+  const router = useRouter()
+  const [state, setState] = useState<State>({ status: "loading" })
+  const [query, setQuery] = useState("")
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set([0]))
+
+  const { canSpeak, isSpeaking, speak } = useSpeech()
+  const { add: addToHistory } = usePersistedList("lexi.history", { cap: HISTORY_CAP })
+  const favorites = usePersistedList("lexi.favorites")
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`)
+        const body = await response.json()
+        if (cancelled) return
+
+        if (body.status !== "ok") {
+          setState({ status: "error", message: body.message ?? "Something went wrong." })
+          return
+        }
+
+        const data = body.data as DefinitionResult
+        if (!data.found) {
+          setState({ status: "not-found", message: data.message, suggestion: data.suggestion })
+          return
+        }
+
+        addToHistory(data.word)
+        setState({ status: "success", data })
+      } catch {
+        if (cancelled) return
+        setState({ status: "error", message: "Something went wrong. Please try again." })
+      }
+    }
+
+    load()
+
+    return () => {
+      cancelled = true
+    }
+  }, [word, addToHistory])
+
+  function goToWord(rawWord: string) {
+    const trimmed = rawWord.trim()
+    if (!trimmed) return
+    router.push(`/word/${encodeURIComponent(trimmed)}`)
+  }
+
+  function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    goToWord(query)
+  }
+
+  function toggleSense(index: number) {
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const isFavorite = state.status === "success" && favorites.has(state.data.word)
+
+  return (
+    <div className="flex w-full flex-col gap-6">
+      <div className="flex items-center gap-2.5">
+        <Button
+          type="button"
+          variant="glass"
+          size="icon"
+          className="shrink-0 rounded-full"
+          onClick={() => router.back()}
+          aria-label="Back"
+        >
+          <ChevronLeftIcon />
+        </Button>
+        <form onSubmit={handleSearchSubmit} className="min-w-0 flex-1">
+          <InputGroup>
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder="Look up a word…"
+              autoComplete="off"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </InputGroup>
+        </form>
+        {state.status === "success" && (
+          <Button
+            type="button"
+            variant="glass"
+            size="icon"
+            className="shrink-0 rounded-full"
+            onClick={() =>
+              isFavorite ? favorites.remove(state.data.word) : favorites.add(state.data.word)
+            }
+            aria-label={
+              isFavorite
+                ? `Remove ${state.data.word} from favorites`
+                : `Save ${state.data.word} to favorites`
+            }
+          >
+            <StarIcon fill={isFavorite ? "currentColor" : "none"} />
+          </Button>
+        )}
+      </div>
+
+      {state.status === "loading" && (
+        <div className="glass-surface flex flex-col gap-3.5 rounded-[26px] p-6">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-px w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-20 w-full rounded-[18px]" />
+        </div>
+      )}
+
+      {state.status === "success" && (
+        <div className="glass-surface flex flex-col gap-4 rounded-[26px] p-6">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2.5">
+              <span className="font-heading text-[36px] leading-tight font-semibold tracking-tight">
+                {capitalizeFirstLetter(state.data.word)}
+              </span>
+              {state.data.cefrLevel && <Badge variant="secondary">{state.data.cefrLevel}</Badge>}
+            </div>
+            {state.data.ipa && (
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-muted-foreground">{state.data.ipa}</span>
+                {canSpeak && (
+                  <Button
+                    type="button"
+                    variant="glass"
+                    size="icon-sm"
+                    onClick={() => speak(state.data.word)}
+                    aria-label={`Play pronunciation of ${state.data.word}`}
+                  >
+                    {isSpeaking ? <Spinner /> : <Volume2Icon />}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="h-px bg-[rgba(60,60,67,0.16)]" />
+
+          <div className="flex flex-col">
+            {state.data.entries.map((entry, index) => {
+              const isExpanded = expanded.has(index)
+              return (
+                <div
+                  key={index}
+                  className={cn(
+                    "flex flex-col gap-3",
+                    index > 0 && "mt-3 border-t border-[rgba(60,60,67,0.16)] pt-3"
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSense(index)}
+                    className="flex min-h-11 w-full items-center justify-between gap-3 text-left"
+                  >
+                    <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      {entry.partOfSpeech}
+                    </span>
+                    <ChevronDownIcon
+                      className={cn(
+                        "size-[18px] shrink-0 text-muted-foreground/60 transition-transform",
+                        isExpanded && "rotate-180"
+                      )}
+                    />
+                  </button>
+
+                  {isExpanded ? (
+                    <>
+                      <p>{entry.definition}</p>
+                      {entry.usageNote && (
+                        <p className="text-sm text-muted-foreground">{entry.usageNote}</p>
+                      )}
+                      {entry.translatedDefinition && (
+                        <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
+                          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            {state.data.translationLanguage ?? "Translation"}
+                          </span>
+                          <p className="text-sm">
+                            {entry.translatedWord && (
+                              <span className="font-semibold">
+                                {capitalizeFirstLetter(entry.translatedWord)}{" "}
+                              </span>
+                            )}
+                            {entry.translatedDefinition}
+                          </p>
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
+                        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                          Example
+                        </span>
+                        <p className="text-sm italic">&ldquo;{entry.example}&rdquo;</p>
+                      </div>
+                      {entry.synonyms.length > 0 && (
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            Synonyms
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {entry.synonyms.map((synonym) => (
+                              <button key={synonym} type="button" onClick={() => goToWord(synonym)}>
+                                <Badge variant="secondary">{synonym}</Badge>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {entry.antonyms.length > 0 && (
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            Antonyms
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {entry.antonyms.map((antonym) => (
+                              <button key={antonym} type="button" onClick={() => goToWord(antonym)}>
+                                <Badge variant="secondary">{antonym}</Badge>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="truncate text-sm text-muted-foreground">{entry.definition}</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {state.status === "not-found" && (
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <BookOpenIcon />
+            </EmptyMedia>
+            <EmptyTitle>No definition found</EmptyTitle>
+            <EmptyDescription>
+              {state.message ?? "That doesn't look like a word we can define."}
+            </EmptyDescription>
+          </EmptyHeader>
+          {state.suggestion && (
+            <EmptyContent>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => goToWord(state.suggestion!)}
+              >
+                Did you mean &ldquo;{state.suggestion}&rdquo;?
+              </Button>
+            </EmptyContent>
+          )}
+        </Empty>
+      )}
+
+      {state.status === "error" && (
+        <Alert variant="destructive">
+          <AlertTitle>Lookup failed</AlertTitle>
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
+      )}
+    </div>
+  )
+}

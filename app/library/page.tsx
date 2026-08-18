@@ -140,7 +140,7 @@ export default function LibraryPage() {
             {savedState.words.map((entry, index) => (
               <Link
                 key={entry.word}
-                href={`/?word=${encodeURIComponent(entry.word)}`}
+                href={`/word/${encodeURIComponent(entry.word)}`}
                 className={cn(
                   "flex min-h-[60px] items-center gap-3 px-[18px] py-3.5",
                   index < savedState.words.length - 1 && "border-b border-[rgba(60,60,67,0.14)]"

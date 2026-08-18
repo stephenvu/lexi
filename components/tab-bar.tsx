@@ -21,7 +21,11 @@ export function TabBar() {
     <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-3">
       <div className="glass-tabbar grid w-full max-w-sm grid-cols-3 gap-1 rounded-[30px] p-1.5">
         {TABS.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href
+          // /word/[word] is a pushed detail screen, not a tab of its own —
+          // the mockup always shows Home highlighted while on it, regardless
+          // of whether the page was reached from Home, Library, or a chip.
+          const isActive =
+            pathname === href || (href === "/" && pathname.startsWith("/word"))
           return (
             <Link
               key={href}
