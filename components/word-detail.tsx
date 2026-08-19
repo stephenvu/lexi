@@ -53,7 +53,7 @@ export function WordDetail({ word }: { word: string }) {
   const [query, setQuery] = useState("")
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set([0]))
 
-  const { canSpeak, isSpeaking, speak } = useSpeech()
+  const { isSpeaking, speak } = useSpeech()
   const { add: addToHistory } = usePersistedList("lexi.history", { cap: HISTORY_CAP })
   const favorites = usePersistedList("lexi.favorites")
 
@@ -186,17 +186,15 @@ export function WordDetail({ word }: { word: string }) {
             {state.data.ipa && (
               <div className="flex items-center gap-2">
                 <span className="font-mono text-muted-foreground">{state.data.ipa}</span>
-                {canSpeak && (
-                  <Button
-                    type="button"
-                    variant="glass"
-                    size="icon-sm"
-                    onClick={() => speak(state.data.word)}
-                    aria-label={`Play pronunciation of ${state.data.word}`}
-                  >
-                    {isSpeaking ? <Spinner /> : <Volume2Icon />}
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="glass"
+                  size="icon-sm"
+                  onClick={() => speak(state.data.word)}
+                  aria-label={`Play pronunciation of ${state.data.word}`}
+                >
+                  {isSpeaking ? <Spinner /> : <Volume2Icon />}
+                </Button>
               </div>
             )}
           </div>

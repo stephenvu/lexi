@@ -49,7 +49,7 @@ export function StudyFlashcards() {
   const [deckState, setDeckState] = useState<DeckState>({ status: "loading" })
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
-  const { canSpeak, isSpeaking, speak } = useSpeech()
+  const { isSpeaking, speak } = useSpeech()
 
   // Pre-fetch every favorited word's (already-cached) definition, then
   // shuffle. The setState below happens after the await, inside the
@@ -163,18 +163,16 @@ export function StudyFlashcards() {
                         <span className="font-mono text-sm text-muted-foreground">{card.ipa}</span>
                       )}
                     </div>
-                    {canSpeak && (
-                      <Button
-                        type="button"
-                        variant="glass"
-                        size="icon"
-                        className="size-11 shrink-0"
-                        onClick={() => speak(card.word)}
-                        aria-label={`Play pronunciation of ${card.word}`}
-                      >
-                        {isSpeaking ? <Spinner /> : <Volume2Icon />}
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      variant="glass"
+                      size="icon"
+                      className="size-11 shrink-0"
+                      onClick={() => speak(card.word)}
+                      aria-label={`Play pronunciation of ${card.word}`}
+                    >
+                      {isSpeaking ? <Spinner /> : <Volume2Icon />}
+                    </Button>
                   </div>
 
                   <div className="flex flex-col gap-4 border-t border-[rgba(60,60,67,0.16)] pt-4">
@@ -213,18 +211,16 @@ export function StudyFlashcards() {
                   {card.ipa && (
                     <span className="font-mono text-muted-foreground">{card.ipa}</span>
                   )}
-                  {canSpeak && (
-                    <Button
-                      type="button"
-                      variant="glass"
-                      size="icon"
-                      className="size-[52px]"
-                      onClick={() => speak(card.word)}
-                      aria-label={`Play pronunciation of ${card.word}`}
-                    >
-                      {isSpeaking ? <Spinner /> : <Volume2Icon />}
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="glass"
+                    size="icon"
+                    className="size-[52px]"
+                    onClick={() => speak(card.word)}
+                    aria-label={`Play pronunciation of ${card.word}`}
+                  >
+                    {isSpeaking ? <Spinner /> : <Volume2Icon />}
+                  </Button>
                   <Button
                     type="button"
                     variant="glass"
