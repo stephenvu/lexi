@@ -162,6 +162,9 @@ export function StudyFlashcards() {
                       {card.ipa && (
                         <span className="font-mono text-sm text-muted-foreground">{card.ipa}</span>
                       )}
+                      {card.syllables && (
+                        <span className="text-sm text-muted-foreground">{card.syllables}</span>
+                      )}
                     </div>
                     <Button
                       type="button"
@@ -178,23 +181,6 @@ export function StudyFlashcards() {
                   <div className="flex flex-col gap-4 border-t border-[rgba(60,60,67,0.16)] pt-4">
                     <p>{card.entries[0].definition}</p>
 
-                    {card.entries[0].translatedDefinition && (
-                      <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
-                        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                          {card.translationLanguage ?? "Translation"}
-                        </span>
-                        <p className="text-sm">
-                          {card.entries[0].translatedWord && (
-                            <span className="font-semibold">
-                              {capitalizeFirstLetter(card.entries[0].translatedWord)}
-                              {" — "}
-                            </span>
-                          )}
-                          {card.entries[0].translatedDefinition}
-                        </p>
-                      </div>
-                    )}
-
                     <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
                       <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                         Example
@@ -210,6 +196,9 @@ export function StudyFlashcards() {
                   </span>
                   {card.ipa && (
                     <span className="font-mono text-muted-foreground">{card.ipa}</span>
+                  )}
+                  {card.syllables && (
+                    <span className="text-muted-foreground">{card.syllables}</span>
                   )}
                   <Button
                     type="button"

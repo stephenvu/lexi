@@ -183,9 +183,14 @@ export function WordDetail({ word }: { word: string }) {
               </span>
               {state.data.cefrLevel && <Badge variant="secondary">{state.data.cefrLevel}</Badge>}
             </div>
-            {state.data.ipa && (
+            {(state.data.ipa || state.data.syllables) && (
               <div className="flex items-center gap-2">
-                <span className="font-mono text-muted-foreground">{state.data.ipa}</span>
+                {state.data.ipa && (
+                  <span className="font-mono text-muted-foreground">{state.data.ipa}</span>
+                )}
+                {state.data.syllables && (
+                  <span className="text-muted-foreground">{state.data.syllables}</span>
+                )}
                 <Button
                   type="button"
                   variant="glass"
@@ -233,21 +238,6 @@ export function WordDetail({ word }: { word: string }) {
                       <p>{entry.definition}</p>
                       {entry.usageNote && (
                         <p className="text-sm text-muted-foreground">{entry.usageNote}</p>
-                      )}
-                      {entry.translatedDefinition && (
-                        <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
-                          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                            {state.data.translationLanguage ?? "Translation"}
-                          </span>
-                          <p className="text-sm">
-                            {entry.translatedWord && (
-                              <span className="font-semibold">
-                                {capitalizeFirstLetter(entry.translatedWord)}{" "}
-                              </span>
-                            )}
-                            {entry.translatedDefinition}
-                          </p>
-                        </div>
                       )}
                       <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
                         <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">

@@ -45,7 +45,7 @@ Source: [cloud.google.com/translate/pricing](https://cloud.google.com/translate/
 
 - **500,000 characters/month free** — Basic and Advanced editions **combined** (one shared pool, not 500K each).
 - Beyond that: pay-per-character, roughly **$20 per million characters** on the Basic edition (Advanced adds pricier optional features like document/batch translation on top).
-- **Not currently used by this app** — Lexi's bilingual definitions feature (`specs/` — see `lib/gemini.ts`'s `SECOND_LANGUAGE`) uses Gemini itself for translation, not this API. Included here purely as requested reference research, not because it's part of Lexi's cost surface.
+- **Not currently used by this app** — an earlier pass had Gemini itself translate each definition inline (`lib/gemini.ts`'s `SECOND_LANGUAGE`); that's been removed, and bilingual definitions are planned to come back on top of this API instead (see README's Planned section). Included here purely as requested reference research, not because it's part of Lexi's cost surface today.
 
 ## Gemini API rate limits (the model this app actually calls)
 
