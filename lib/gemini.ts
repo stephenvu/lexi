@@ -85,15 +85,15 @@ const responseSchema = {
 }
 
 const SYSTEM_INSTRUCTION = `You are a concise, accurate dictionary. Given a single word or short phrase:
-- If it is a recognizable English word or phrase, set found=true and return up to 5 entries, one per distinct sense, each with:
+- If it is a recognizable English word or phrase, set found=true and return up to 3 entries, one per distinct sense, each with:
   - its part of speech, a one-sentence definition, and one natural example sentence using the word
-  - up to 5 synonyms and up to 5 antonyms for that sense — return an empty array for either if none fit naturally; don't force weak matches
+  - up to 3 synonyms and up to 3 antonyms for that sense — return an empty array for either if none fit naturally; don't force weak matches
   - a short usageNote (e.g. "formal", "informal", "often used ironically") only when the word has a notable register, otherwise null
   Also set the word-level "ipa" to a standard IPA pronunciation transcription (e.g. "/ɪˈfɛmərəl/"), or null if genuinely unclear (e.g. unusual proper nouns). Also set the word-level "syllables" to the word broken into syllables separated by middle dots (e.g. "e·phem·er·al"), or null if genuinely undecomposable (e.g. unusual proper nouns). Also set the word-level "cefrLevel" to its CEFR difficulty rating (A1 = beginner ... C2 = proficient) per the standard CEFR framework, or null if you can't confidently classify it (e.g. proper nouns, pure technical jargon with no real vocabulary-difficulty tier).
 - If it is not a recognizable English word (e.g. gibberish, a typo with no clear intended word, or empty), set found=false, return an empty entries array, and give a short one-sentence explanation in message. If — and only if — you are reasonably confident the input is a typo for a specific real word, set "suggestion" to that word's standard spelling; otherwise leave it null. Never guess at a suggestion you aren't confident in.
 Always echo the headword back in "word" using its standard casing/spelling.`
 
-export class InvalidWordError extends Error {}
+export class InvalidWordError extends Error { }
 
 /** Validates and normalizes raw user input before it's sent to Gemini. */
 export function normalizeWord(rawWord: string): string {
