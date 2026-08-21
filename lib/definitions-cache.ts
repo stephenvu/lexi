@@ -12,14 +12,30 @@ import { translateEntries } from "@/lib/translate"
 
 const COLLECTION = "definitions"
 
-// Coalesces concurrent cache-miss requests for the same word within this
-// process — e.g. React Strict Mode's dev-only double-invoke of effects, two
-// real users hitting a brand-new word at nearly the same moment, or a
-// double-click before the UI disables itself. Without this, both requests
-// see the same "not cached yet" state and each independently pays for its
-// own Gemini + Translate call. Self-cleaning: an entry only exists for the
-// duration of its in-flight request (removed in the `finally` below).
+/**
+ * Coalesces concurrent async work for the same key within this process —
+ * e.g. React Strict Mode's dev-only double-invoke of effects, two real
+ * users hitting the same word at nearly the same moment, or a double-click
+ * before the UI disables itself. Without this, every concurrent caller
+ * would independently pay for its own Gemini/Translate call. Self-cleaning:
+ * an entry only exists for the duration of its in-flight request.
+ */
+function coalesce<T>(map: Map<string, Promise<T>>, key: string, run: () => Promise<T>): Promise<T> {
+  const existing = map.get(key)
+  if (existing) {
+    return existing
+  }
+
+  const promise = run().finally(() => map.delete(key))
+  map.set(key, promise)
+  return promise
+}
+
+// Cache-miss lookups (new words) — each entry pays for its own Gemini call.
 const inFlightGenerations = new Map<string, Promise<DefinitionResult>>()
+// Cache-hit backfills (see backfillTranslations below) — cheaper (Translate
+// only, no Gemini), but the same concurrent-duplicate risk applies.
+const inFlightBackfills = new Map<string, Promise<DefinitionResult>>()
 
 type CachedDefinition = DefinitionResult & {
   model: string
@@ -77,6 +93,33 @@ async function attachTranslations(result: DefinitionResult): Promise<DefinitionR
   }
 }
 
+/**
+ * Backfills translations for a cached result that predates them — every
+ * word from the bulk-seeded Oxford-3000 dataset, plus anything looked up
+ * before the Translate integration existed or before
+ * GOOGLE_TRANSLATE_API_KEY was configured. A no-op (returns `cached`
+ * unchanged) once every entry already has at least one translation, so
+ * this only ever does real work once per word. Not gated by the per-IP
+ * rate limit — that exists for Gemini's cost, not Translate's, and this
+ * only ever runs against already-cached data.
+ */
+function backfillTranslations(key: string, cached: DefinitionResult): Promise<DefinitionResult> {
+  const needsBackfill = cached.entries.some((entry) => entry.translations.length === 0)
+  if (!needsBackfill) {
+    return Promise.resolve(cached)
+  }
+
+  return coalesce(inFlightBackfills, key, async () => {
+    const withTranslations = await attachTranslations(cached)
+
+    writeCache(key, withTranslations).catch((error) => {
+      console.error(`Failed to persist backfilled translations for "${key}":`, error)
+    })
+
+    return withTranslations
+  })
+}
+
 async function writeCache(key: string, result: DefinitionResult): Promise<void> {
   await db
     .collection(COLLECTION)
@@ -101,40 +144,30 @@ async function writeCache(key: string, result: DefinitionResult): Promise<void> 
  * `ip` gates only the cache-miss path below (a rate limit on new Gemini
  * calls, the actual cost driver) — cache hits are free and stay unlimited.
  *
- * Concurrent cache misses for the *same* word are coalesced (see
- * `inFlightGenerations`) — only the first caller actually generates; any
- * others arriving before it finishes just await that same result.
+ * Concurrent requests for the *same* word are coalesced on both the
+ * cache-miss (generation) and cache-hit (translation backfill, see
+ * `backfillTranslations`) paths — only the first caller actually does the
+ * work; any others arriving before it finishes just await that same
+ * result.
  */
 export async function getDefinition(rawWord: string, ip: string): Promise<DefinitionResult> {
   const key = normalizeWord(rawWord).toLowerCase()
 
   const cached = await readCache(key)
   if (cached) {
-    return cached
+    return backfillTranslations(key, cached)
   }
 
-  const existing = inFlightGenerations.get(key)
-  if (existing) {
-    return existing
-  }
+  return coalesce(inFlightGenerations, key, async () => {
+    await checkRateLimit(ip)
 
-  const generation = (async () => {
-    try {
-      await checkRateLimit(ip)
+    const generated = await generateDefinition(rawWord)
+    const withTranslations = await attachTranslations(generated)
 
-      const generated = await generateDefinition(rawWord)
-      const withTranslations = await attachTranslations(generated)
+    writeCache(key, withTranslations).catch((error) => {
+      console.error(`Failed to cache definition for "${key}":`, error)
+    })
 
-      writeCache(key, withTranslations).catch((error) => {
-        console.error(`Failed to cache definition for "${key}":`, error)
-      })
-
-      return withTranslations
-    } finally {
-      inFlightGenerations.delete(key)
-    }
-  })()
-
-  inFlightGenerations.set(key, generation)
-  return generation
+    return withTranslations
+  })
 }
