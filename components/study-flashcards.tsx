@@ -28,6 +28,10 @@ import { usePersistedList } from "@/lib/use-persisted-list"
 import { useSpeech } from "@/lib/use-speech"
 import { capitalizeFirstLetter } from "@/lib/utils"
 
+// Renders a translation's ISO 639-1 "lang" code (e.g. "vi") as a display
+// name (e.g. "Vietnamese") — no hardcoded name-lookup table needed.
+const languageDisplayNames = new Intl.DisplayNames(["en"], { type: "language" })
+
 function shuffle<T>(items: T[]): T[] {
   const copy = [...items]
   for (let i = copy.length - 1; i > 0; i--) {
@@ -180,6 +184,26 @@ export function StudyFlashcards() {
 
                   <div className="flex flex-col gap-4 border-t border-[rgba(60,60,67,0.16)] pt-4">
                     <p>{card.entries[0].definition}</p>
+
+                    {card.entries[0].translations.map((translation) => (
+                      <div
+                        key={translation.lang}
+                        className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4"
+                      >
+                        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                          {languageDisplayNames.of(translation.lang) ?? translation.lang}
+                        </span>
+                        <p className="text-sm">
+                          {translation.word && (
+                            <span className="font-semibold">
+                              {capitalizeFirstLetter(translation.word)}
+                              {" — "}
+                            </span>
+                          )}
+                          {translation.meaning}
+                        </p>
+                      </div>
+                    ))}
 
                     <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
                       <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">

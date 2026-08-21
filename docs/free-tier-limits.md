@@ -45,7 +45,7 @@ Source: [cloud.google.com/translate/pricing](https://cloud.google.com/translate/
 
 - **500,000 characters/month free** — Basic and Advanced editions **combined** (one shared pool, not 500K each).
 - Beyond that: pay-per-character, roughly **$20 per million characters** on the Basic edition (Advanced adds pricier optional features like document/batch translation on top).
-- **Not currently used by this app** — an earlier pass had Gemini itself translate each definition inline (`lib/gemini.ts`'s `SECOND_LANGUAGE`); that's been removed, and bilingual definitions are planned to come back on top of this API instead (see README's Planned section). Included here purely as requested reference research, not because it's part of Lexi's cost surface today.
+- **Now used by this app** (`lib/translate.ts`) — bilingual definitions call the Basic edition, one batched request per target language per new-word lookup (all of a word's senses translated in a single call, not one per sense, and cache hits don't call it at all). An earlier Gemini-based version of this was tried and removed before landing on this API instead. See the worked estimate below for expected scale.
 
 ## Gemini API rate limits (the model this app actually calls)
 
@@ -88,8 +88,8 @@ Assumption (adjust as needed): a fairly active learner doing **~10 new-word look
 
 **Gemini API:** one user's ~10 new-word lookups/day is trivial against even the reduced ~1,500 RPD ballpark. But — per the nuance above — this quota doesn't stay negligible as *total* user count grows the way Firestore/App Hosting's do; it's shared project-wide.
 
-**Google Cloud Translation API:** not applicable — $0, since this app doesn't call it.
+**Google Cloud Translation API:** 10 new-word lookups/day × ~2 senses/word average × ~150 characters per `"word - definition"` string × 1 target language (`vi`, the default) ≈ 3,000 characters/day ≈ 90,000 characters/month — about 18% of the 500K/month free pool, from a single active user. Same "shared per-project, not per-user" caveat as Gemini above applies once usage grows beyond one user.
 
 ### Conclusion
 
-For Firestore and App Hosting: **yes, comfortably**, by roughly 2–3 orders of magnitude of headroom for a single active user — those were never going to be the bottleneck at this app's scale. For Gemini: a single user is also a non-issue, but it's the one quota here that scales with total concurrent usage rather than staying negligible regardless of it, which is exactly what the app's existing per-IP rate limit and billing-alert guardrails (see `README.md`) are for.
+For Firestore and App Hosting: **yes, comfortably**, by roughly 2–3 orders of magnitude of headroom for a single active user — those were never going to be the bottleneck at this app's scale. Translation lands in between: comfortable at ~18% of quota for one user, but — like Gemini — it's a shared per-project pool, not per-user, so it's worth watching as usage grows rather than assuming it stays negligible. For Gemini itself: a single user is also a non-issue, but it's the quota most likely to bind first at scale, which is exactly what the app's existing per-IP rate limit and billing-alert guardrails (see `README.md`) are for.

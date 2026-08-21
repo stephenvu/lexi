@@ -15,3 +15,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Optional — omit this binding entirely to ship without bilingual
+  # definitions. Create with:
+  # firebase apphosting:secrets:set GOOGLE_TRANSLATE_API_KEY
+  - variable: GOOGLE_TRANSLATE_API_KEY
+    secret: GOOGLE_TRANSLATE_API_KEY
+  - variable: TRANSLATE_TARGET_LANGUAGES
+    value: vi
+    availability:
+      - BUILD
+      - RUNTIME

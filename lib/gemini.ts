@@ -1,5 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai"
 
+import type { Translation } from "@/lib/translate"
+
 // Flash-Lite model naming moves fast — override via GEMINI_MODEL if this
 // default has been superseded. Check https://ai.google.dev/gemini-api/docs/models
 // for the current recommended id.
@@ -27,6 +29,10 @@ export type DefinitionEntry = {
   synonyms: string[]
   antonyms: string[]
   usageNote: string | null
+  // Populated downstream by lib/translate.ts (Google Cloud Translation
+  // API), not by Gemini — unlike every other field on this type. Always []
+  // straight out of generateDefinition().
+  translations: Translation[]
 }
 
 export type DefinitionResult = {
@@ -144,6 +150,7 @@ export async function generateDefinition(word: string): Promise<DefinitionResult
       synonyms: entry.synonyms ?? [],
       antonyms: entry.antonyms ?? [],
       usageNote: entry.usageNote ?? null,
+      translations: [],
     })),
   }
 }

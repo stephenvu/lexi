@@ -8,6 +8,7 @@ import {
   type DefinitionResult,
 } from "@/lib/gemini"
 import { checkRateLimit } from "@/lib/rate-limit"
+import { translateEntries } from "@/lib/translate"
 
 const COLLECTION = "definitions"
 
@@ -40,7 +41,30 @@ async function readCache(key: string): Promise<DefinitionResult | null> {
       synonyms: entry.synonyms ?? [],
       antonyms: entry.antonyms ?? [],
       usageNote: entry.usageNote ?? null,
+      translations: entry.translations ?? [],
     })),
+  }
+}
+
+/**
+ * Attaches Google-Translate-sourced translations to every entry. A total
+ * failure here (a per-language failure is already handled inside
+ * translateEntries) still returns `result` unchanged — translations are an
+ * enhancement on top of the core lookup, never a reason to fail it.
+ */
+async function attachTranslations(result: DefinitionResult): Promise<DefinitionResult> {
+  try {
+    const translationsPerEntry = await translateEntries(result.word, result.entries)
+    return {
+      ...result,
+      entries: result.entries.map((entry, index) => ({
+        ...entry,
+        translations: translationsPerEntry[index],
+      })),
+    }
+  } catch (error) {
+    console.error(`Failed to translate definition for "${result.word}":`, error)
+    return result
   }
 }
 
@@ -79,10 +103,11 @@ export async function getDefinition(rawWord: string, ip: string): Promise<Defini
   await checkRateLimit(ip)
 
   const generated = await generateDefinition(rawWord)
+  const withTranslations = await attachTranslations(generated)
 
-  writeCache(key, generated).catch((error) => {
+  writeCache(key, withTranslations).catch((error) => {
     console.error(`Failed to cache definition for "${key}":`, error)
   })
 
-  return generated
+  return withTranslations
 }

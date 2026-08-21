@@ -36,6 +36,10 @@ import { capitalizeFirstLetter, cn } from "@/lib/utils"
 
 const HISTORY_CAP = 20
 
+// Renders a translation's ISO 639-1 "lang" code (e.g. "vi") as a display
+// name (e.g. "Vietnamese") — no hardcoded name-lookup table needed.
+const languageDisplayNames = new Intl.DisplayNames(["en"], { type: "language" })
+
 type State =
   | { status: "loading" }
   | { status: "success"; data: DefinitionResult }
@@ -239,6 +243,24 @@ export function WordDetail({ word }: { word: string }) {
                       {entry.usageNote && (
                         <p className="text-sm text-muted-foreground">{entry.usageNote}</p>
                       )}
+                      {entry.translations.map((translation) => (
+                        <div
+                          key={translation.lang}
+                          className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4"
+                        >
+                          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            {languageDisplayNames.of(translation.lang) ?? translation.lang}
+                          </span>
+                          <p className="text-sm">
+                            {translation.word && (
+                              <span className="font-semibold">
+                                {capitalizeFirstLetter(translation.word)}{" "}
+                              </span>
+                            )}
+                            {translation.meaning}
+                          </p>
+                        </div>
+                      ))}
                       <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
                         <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                           Example

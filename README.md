@@ -17,6 +17,7 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 - **Deliberate search-on-submit** — looks up on Enter/click only (never live-as-you-type), avoiding a Gemini call per keystroke; a new search cancels a still-in-flight one.
 - **Richer lookups** — synonyms/antonyms, pronunciation (IPA, syllable breakdown, and audio), usage notes, "did you mean" fallback for typos.
 - **Difficulty indicator** — each word labeled with its CEFR level (A1–C2), returned by Gemini as part of the same definition response. Shown on both the search result card and flashcards.
+- **Bilingual definitions** — each sense also translated (word + meaning) via the Google Cloud Translation API, stored as a `translations` array per sense so more target languages are a config change away, not a schema change. Defaults to Vietnamese (`TRANSLATE_TARGET_LANGUAGES`); gracefully skipped (no crash, just an empty array) if `GOOGLE_TRANSLATE_API_KEY` isn't set.
 - **Saved words & history** — favorite words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box. Local-only (`localStorage`), not synced across devices.
 - **Study features** — a word-of-the-day drawn from your favorites, and a `/study` flashcard deck through them. See `specs/study-features.md`.
 - **Cost safety net** — new-word lookups (the ones that actually call Gemini; repeat/cached lookups are unaffected) are rate-limited per IP in production, since this is a public search box with no accounts. A safety net against a runaway bill, not attacker-resistant abuse prevention — see the "Cost safety net" note under Deploy below.
@@ -27,15 +28,15 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 Deliberately left out of the first build to keep scope tight — listed here as a roadmap, not a promise:
 
 - **Etymology & related/confusable words** — deferred from the Richer Lookups pass; see `specs/richer-lookups.md`.
-- **Bilingual definitions** — translating each sense into a second language, via the Google Cloud Translation API rather than asking Gemini to translate inline (an earlier Gemini-based version of this was tried and removed).
 - **Accounts & cross-device sync** — would replace today's local-only history/favorites.
-- **Settings page** — a per-user replacement for today's env-var-only config (e.g. a user-configurable second language, once bilingual definitions above exist).
+- **Settings page** — a per-user replacement for today's env-var-only config (e.g. user-configurable target languages for bilingual definitions).
 - **Firebase App Check** — a stronger, attacker-resistant anti-abuse layer than the current per-IP rate limit, at the cost of the app's first client-side Firebase SDK dependency plus a reCAPTCHA registration.
 
 ## Prerequisites
 
 - A [Firebase project](https://console.firebase.google.com/) with **Firestore** enabled (Native mode).
 - A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey).
+- Optional, for bilingual definitions: a [Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com) key (enable the API on your GCP project, then create/restrict an API key in Credentials). Lookups work fine without one — translations just come back empty.
 
 ## Setup
 
@@ -51,6 +52,12 @@ Deliberately left out of the first build to keep scope tight — listed here as 
    # Optional — new-word lookups per IP per hour before a 429. Defaults to
    # 20. Only enforced when NODE_ENV=production (never in local dev).
    RATE_LIMIT_MAX_PER_HOUR=20
+   # Optional — omit to skip bilingual definitions entirely (lookups still
+   # work fine, just with an empty `translations` array per sense).
+   GOOGLE_TRANSLATE_API_KEY=your-key-here
+   # Optional — comma-separated ISO 639-1 codes. Defaults to Vietnamese
+   # ("vi"). Only applies to newly-generated (cache-miss) lookups.
+   TRANSLATE_TARGET_LANGUAGES=vi
    ```
 3. Set up local Firestore credentials via Application Default Credentials:
    ```bash
@@ -86,6 +93,8 @@ firebase apphosting:secrets:grantaccess GEMINI_API_KEY --backend=lexi
 ```
 
 A secret's *value* only takes effect on the **next rollout** — after setting or changing one, push a commit (or trigger a manual rollout from the Firebase Console) to pick it up.
+
+The same applies to `GOOGLE_TRANSLATE_API_KEY` (`apphosting.yaml` already declares the binding) — it's genuinely optional in production too; without it, deployed lookups just skip bilingual definitions.
 
 To deploy without going through GitHub (e.g. to test a change before pushing, or to redeploy after a secret change):
 
