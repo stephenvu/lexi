@@ -12,6 +12,15 @@ import { translateEntries } from "@/lib/translate"
 
 const COLLECTION = "definitions"
 
+// Coalesces concurrent cache-miss requests for the same word within this
+// process — e.g. React Strict Mode's dev-only double-invoke of effects, two
+// real users hitting a brand-new word at nearly the same moment, or a
+// double-click before the UI disables itself. Without this, both requests
+// see the same "not cached yet" state and each independently pays for its
+// own Gemini + Translate call. Self-cleaning: an entry only exists for the
+// duration of its in-flight request (removed in the `finally` below).
+const inFlightGenerations = new Map<string, Promise<DefinitionResult>>()
+
 type CachedDefinition = DefinitionResult & {
   model: string
   createdAt: FirebaseFirestore.Timestamp
@@ -91,6 +100,10 @@ async function writeCache(key: string, result: DefinitionResult): Promise<void> 
  *
  * `ip` gates only the cache-miss path below (a rate limit on new Gemini
  * calls, the actual cost driver) — cache hits are free and stay unlimited.
+ *
+ * Concurrent cache misses for the *same* word are coalesced (see
+ * `inFlightGenerations`) — only the first caller actually generates; any
+ * others arriving before it finishes just await that same result.
  */
 export async function getDefinition(rawWord: string, ip: string): Promise<DefinitionResult> {
   const key = normalizeWord(rawWord).toLowerCase()
@@ -100,14 +113,28 @@ export async function getDefinition(rawWord: string, ip: string): Promise<Defini
     return cached
   }
 
-  await checkRateLimit(ip)
+  const existing = inFlightGenerations.get(key)
+  if (existing) {
+    return existing
+  }
 
-  const generated = await generateDefinition(rawWord)
-  const withTranslations = await attachTranslations(generated)
+  const generation = (async () => {
+    try {
+      await checkRateLimit(ip)
 
-  writeCache(key, withTranslations).catch((error) => {
-    console.error(`Failed to cache definition for "${key}":`, error)
-  })
+      const generated = await generateDefinition(rawWord)
+      const withTranslations = await attachTranslations(generated)
 
-  return withTranslations
+      writeCache(key, withTranslations).catch((error) => {
+        console.error(`Failed to cache definition for "${key}":`, error)
+      })
+
+      return withTranslations
+    } finally {
+      inFlightGenerations.delete(key)
+    }
+  })()
+
+  inFlightGenerations.set(key, generation)
+  return generation
 }

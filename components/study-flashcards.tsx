@@ -63,13 +63,19 @@ export function StudyFlashcards() {
   useEffect(() => {
     if (isEmpty) return // nothing to fetch; the empty state renders directly from favorites.items
 
-    let cancelled = false
+    // A real AbortController (not just a boolean flag) so React Strict
+    // Mode's dev-only double-invoke of effects genuinely cancels the first
+    // invocation's in-flight requests instead of just ignoring their
+    // result — see the identical fix/comment in components/word-detail.tsx.
+    const controller = new AbortController()
 
     async function loadDeck() {
       const results = await Promise.all(
         favorites.items.map(async (word) => {
           try {
-            const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`)
+            const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
+              signal: controller.signal,
+            })
             const body = await response.json()
             return body.status === "ok" ? (body.data as DefinitionResult) : null
           } catch {
@@ -78,7 +84,7 @@ export function StudyFlashcards() {
         })
       )
 
-      if (cancelled) return
+      if (controller.signal.aborted) return
 
       // Defensive: a favorited word's cache doc should always be found:true
       // (favoriting only happens from a successful result), but don't let
@@ -92,7 +98,7 @@ export function StudyFlashcards() {
     loadDeck()
 
     return () => {
-      cancelled = true
+      controller.abort()
     }
   }, [favorites.items, isEmpty])
 

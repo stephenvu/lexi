@@ -62,13 +62,21 @@ export function WordDetail({ word }: { word: string }) {
   const favorites = usePersistedList("lexi.favorites")
 
   useEffect(() => {
-    let cancelled = false
+    // A boolean "cancelled" flag only gates the setState calls below — it
+    // never aborts the underlying fetch. Under React Strict Mode's dev-only
+    // double-invoke of effects, that let two real requests (and two real
+    // Gemini/Translate calls on an uncached word) fire nearly
+    // simultaneously. A real AbortController fixes that: the first
+    // invocation's request is genuinely cancelled before it reaches the
+    // server, not just ignored after the fact.
+    const controller = new AbortController()
 
     async function load() {
       try {
-        const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`)
+        const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
+          signal: controller.signal,
+        })
         const body = await response.json()
-        if (cancelled) return
 
         if (body.status !== "ok") {
           setState({ status: "error", message: body.message ?? "Something went wrong." })
@@ -83,8 +91,8 @@ export function WordDetail({ word }: { word: string }) {
 
         addToHistory(data.word)
         setState({ status: "success", data })
-      } catch {
-        if (cancelled) return
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return
         setState({ status: "error", message: "Something went wrong. Please try again." })
       }
     }
@@ -92,7 +100,7 @@ export function WordDetail({ word }: { word: string }) {
     load()
 
     return () => {
-      cancelled = true
+      controller.abort()
     }
   }, [word, addToHistory])
 

@@ -38,13 +38,19 @@ export default function LibraryPage() {
   useEffect(() => {
     if (isEmpty) return
 
-    let cancelled = false
+    // A real AbortController (not just a boolean flag) so React Strict
+    // Mode's dev-only double-invoke of effects genuinely cancels the first
+    // invocation's in-flight requests instead of just ignoring their
+    // result — see the identical fix/comment in components/word-detail.tsx.
+    const controller = new AbortController()
 
     async function loadSaved() {
       const results = await Promise.all(
         favorites.items.map(async (word) => {
           try {
-            const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`)
+            const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
+              signal: controller.signal,
+            })
             const body = await response.json()
             return body.status === "ok" ? (body.data as DefinitionResult) : null
           } catch {
@@ -53,7 +59,7 @@ export default function LibraryPage() {
         })
       )
 
-      if (cancelled) return
+      if (controller.signal.aborted) return
 
       const valid = results.filter((result): result is DefinitionResult => result?.found === true)
       setSavedState({ status: "ready", words: valid })
@@ -62,7 +68,7 @@ export default function LibraryPage() {
     loadSaved()
 
     return () => {
-      cancelled = true
+      controller.abort()
     }
   }, [favorites.items, isEmpty])
 
