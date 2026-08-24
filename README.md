@@ -76,8 +76,11 @@ Deliberately left out of the first build to keep scope tight — listed here as 
 3. Set up local Firestore credentials via Application Default Credentials:
    ```bash
    gcloud auth application-default login
+   gcloud auth application-default set-quota-project lexi-gemini
    ```
    `GOOGLE_CLOUD_PROJECT` above is required alongside this — user ADC credentials (unlike a service account) don't carry a project id on their own.
+
+   The second command matters specifically for sign-in: user ADC credentials have no quota project set by default, and `identitytoolkit.googleapis.com` (what `auth.createSessionCookie()` in `app/api/session/route.ts` calls) refuses to run without one — unlike the Firestore Admin SDK calls elsewhere in this app, which don't hit that requirement. Skipping it surfaces as sign-in succeeding (you'll see the user appear in Firebase Console → Authentication) while `/api/session` fails with a "quota project" error in the server log.
 4. `.firebaserc` already points at this project's Firebase project (`lexi-gemini`) and the live backend is deployed there via GitHub — replace the project id here only if you're deploying your own copy under a different Firebase project.
 
 ## Run

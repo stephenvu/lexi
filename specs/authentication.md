@@ -58,6 +58,7 @@ Called from `app/login/page.tsx` right after a successful sign-in, before naviga
 - Enable **Google** under Authentication → Sign-in method, on the `lexi-gemini` project.
 - Register a **Web app** for the project if none exists (Project Settings → General) and copy its config (`apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`) into `NEXT_PUBLIC_FIREBASE_*` env vars — public-safe values, but real ones have to come from the console.
 - `firebase deploy --only firestore:rules` after any `firestore.rules` change — rules aren't part of the GitHub-triggered App Hosting rollout.
+- **Local dev only, one-time per machine:** `gcloud auth application-default set-quota-project lexi-gemini`. Discovered the hard way — `auth.createSessionCookie()` (`app/api/session/route.ts`) calls `identitytoolkit.googleapis.com`, which rejects user ADC credentials with no quota project set, even though the Firestore Admin SDK calls elsewhere in this app don't hit that same requirement. Symptom without it: sign-in succeeds (the user shows up in Firebase Console → Authentication) but `/api/session` fails, logging a "quota project" error server-side.
 
 ## Explicitly out of scope
 
