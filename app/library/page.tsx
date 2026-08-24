@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ChevronRightIcon, LibraryIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { DefinitionResult } from "@/lib/gemini"
+import { signOutUser, useAuth } from "@/lib/use-auth"
 import { usePersistedList } from "@/lib/use-persisted-list"
 import { capitalizeFirstLetter, cn } from "@/lib/utils"
 
@@ -27,16 +29,28 @@ type SavedState =
   | { status: "ready"; words: DefinitionResult[] }
 
 export default function LibraryPage() {
+  const router = useRouter()
+  const { user } = useAuth()
   const [segment, setSegment] = useState<Segment>("decks")
-  const favorites = usePersistedList("lexi.favorites")
-  const isEmpty = favorites.items.length === 0
+  const favorites = usePersistedList("favorites")
+  // False while favorites is still loading, not just when it's genuinely
+  // empty — otherwise a user who does have saved words sees a "No saved
+  // words yet" flash before their real data arrives from Firestore.
+  const isEmpty = !favorites.isLoading && favorites.items.length === 0
   const [savedState, setSavedState] = useState<SavedState>({ status: "loading" })
+
+  async function handleSignOut() {
+    await signOutUser()
+    await fetch("/api/session", { method: "DELETE" })
+    router.push("/login")
+    router.refresh()
+  }
 
   // Same read-through pattern as the Study deck: favorites are always
   // cached already (favoriting only happens after a successful lookup), so
   // this is just re-fetching already-known data, not billing anything new.
   useEffect(() => {
-    if (isEmpty) return
+    if (isEmpty || favorites.isLoading) return
 
     // A real AbortController (not just a boolean flag) so React Strict
     // Mode's dev-only double-invoke of effects genuinely cancels the first
@@ -70,7 +84,7 @@ export default function LibraryPage() {
     return () => {
       controller.abort()
     }
-  }, [favorites.items, isEmpty])
+  }, [favorites.items, isEmpty, favorites.isLoading])
 
   return (
     <div className="flex flex-1 items-start justify-center px-4 py-16 sm:py-24">
@@ -164,6 +178,36 @@ export default function LibraryPage() {
                 <ChevronRightIcon className="size-[18px] shrink-0 text-muted-foreground/50" />
               </Link>
             ))}
+          </div>
+        )}
+
+        {user && (
+          <div className="glass-surface flex items-center justify-between gap-3 rounded-[26px] p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              {user.photoURL && (
+                // A plain <img>, not next/image — this is the app's only
+                // external-domain image, and configuring remotePatterns
+                // for one small avatar isn't worth the extra config.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.photoURL}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="size-10 shrink-0 rounded-full"
+                />
+              )}
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-semibold">
+                  {user.displayName ?? "Signed in"}
+                </span>
+                {user.email && (
+                  <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                )}
+              </div>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={handleSignOut}>
+              Sign out
+            </Button>
           </div>
         )}
       </main>

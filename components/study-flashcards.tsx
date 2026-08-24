@@ -101,11 +101,15 @@ type ViewState =
   | { status: "reviewing"; queue: DefinitionResult[]; index: number }
 
 export function StudyFlashcards() {
-  const favorites = usePersistedList("lexi.favorites")
+  const favorites = usePersistedList("favorites")
   const srsCards = useSrsCards()
   // Derived directly from favorites, not stored in state — there's nothing
   // to fetch when there are no favorites, so this needs no effect at all.
-  const isEmpty = favorites.items.length === 0
+  // False while favorites is still loading (rather than judging by the
+  // empty `items` a loading state starts with) — otherwise a user who
+  // does have favorites would see a "No favorites yet" flash before their
+  // real data arrives from Firestore.
+  const isEmpty = !favorites.isLoading && favorites.items.length === 0
   const [viewState, setViewState] = useState<ViewState>({ status: "loading" })
   const [flipped, setFlipped] = useState(false)
   const { isSpeaking, speak } = useSpeech()
@@ -129,6 +133,12 @@ export function StudyFlashcards() {
   // the setState-in-effect anti-pattern.
   useEffect(() => {
     if (isEmpty) return // nothing to fetch; the empty state renders directly from favorites.items
+    // Wait for real data before computing anything — srsCards.isLoading
+    // isn't in this effect's deps to react to every rating (that's what
+    // getCardRef above is for), but it does need to react to this one
+    // loading -> loaded transition, so the due-queue gets computed against
+    // real schedules rather than every word looking freshly due.
+    if (favorites.isLoading || srsCards.isLoading) return
 
     // A real AbortController (not just a boolean flag) so React Strict
     // Mode's dev-only double-invoke of effects genuinely cancels the first
@@ -173,7 +183,7 @@ export function StudyFlashcards() {
     return () => {
       controller.abort()
     }
-  }, [favorites.items, isEmpty])
+  }, [favorites.items, isEmpty, favorites.isLoading, srsCards.isLoading])
 
   function rate(word: string, rating: Grade) {
     srsCards.rate(word, rating)

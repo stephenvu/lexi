@@ -18,9 +18,10 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 - **Richer lookups** — synonyms/antonyms, pronunciation (IPA, syllable breakdown, and audio), usage notes, "did you mean" fallback for typos.
 - **Difficulty indicator** — each word labeled with its CEFR level (A1–C2), returned by Gemini as part of the same definition response. Shown on both the search result card and flashcards.
 - **Bilingual definitions** — each sense also translated (word + meaning) via the Google Cloud Translation API, stored as a `translations` array per sense so more target languages are a config change away, not a schema change. Defaults to Vietnamese (`TRANSLATE_TARGET_LANGUAGES`); gracefully skipped (no crash, just an empty array) if `GOOGLE_TRANSLATE_API_KEY` isn't set.
-- **Saved words & history** — favorite words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box. Local-only (`localStorage`), not synced across devices.
-- **Study features** — a word-of-the-day drawn from your favorites, and a `/study` flashcard deck through them. See `specs/study-features.md`.
-- **Cost safety net** — new-word lookups (the ones that actually call Gemini; repeat/cached lookups are unaffected) are rate-limited per IP in production, since this is a public search box with no accounts. A safety net against a runaway bill, not attacker-resistant abuse prevention — see the "Cost safety net" note under Deploy below.
+- **Authentication & cross-device sync** — Google Sign-In, required to use the app. Favorite words, lookup history, and study scheduling all live in Firestore under your account (`users/{uid}`) and sync in real time across every device signed into it — see `specs/authentication.md`.
+- **Saved words & history** — favorite words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box.
+- **Study features** — spaced repetition through your favorites via [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) on `/study`: only what's actually due gets reviewed, rated Again/Hard/Good/Easy.
+- **Cost safety net** — new-word lookups (the ones that actually call Gemini; repeat/cached lookups are unaffected) are rate-limited per signed-in user in production. A safety net against a runaway bill, not attacker-resistant abuse prevention — see the "Cost safety net" note under Deploy below.
 - **Installable (PWA)** — a web app manifest + a minimal service worker make Lexi installable to a home screen/desktop via the browser's native install affordance (no custom install button — [Next.js's own guidance](https://nextjs.org/docs/app/guides/progressive-web-apps) is against `beforeinstallprompt`, since it doesn't work on Safari iOS). Offline support and push notifications are separate, unimplemented features.
 
 ### Planned / beyond current MVP scope
@@ -28,15 +29,18 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 Deliberately left out of the first build to keep scope tight — listed here as a roadmap, not a promise:
 
 - **Etymology & related/confusable words** — deferred from the Richer Lookups pass; see `specs/richer-lookups.md`.
-- **Accounts & cross-device sync** — would replace today's local-only history/favorites.
 - **Settings page** — a per-user replacement for today's env-var-only config (e.g. user-configurable target languages for bilingual definitions).
-- **Firebase App Check** — a stronger, attacker-resistant anti-abuse layer than the current per-IP rate limit, at the cost of the app's first client-side Firebase SDK dependency plus a reCAPTCHA registration.
+- **Firebase App Check** — a stronger, attacker-resistant anti-abuse layer than the current per-user rate limit, at the cost of a reCAPTCHA registration.
+- **Pre-loaded decks** — Library's "Decks" tab is still a placeholder; today's `/study` only ever reviews your favorites (see `specs/authentication.md`'s data model, which this would build on).
 
 ## Prerequisites
 
 - A [Firebase project](https://console.firebase.google.com/) with **Firestore** enabled (Native mode).
 - A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey).
 - Optional, for bilingual definitions: a [Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com) key (enable the API on your GCP project, then create/restrict an API key in Credentials). Lookups work fine without one — translations just come back empty.
+- **Required**, for sign-in (the whole app is gated behind it — see `specs/authentication.md`):
+  - Enable **Google** under Authentication → Sign-in method, on your Firebase project.
+  - Register a **Web app** for the project if you don't have one yet (Project Settings → General → Your apps) and copy its config values — you'll need these for the `NEXT_PUBLIC_FIREBASE_*` env vars below.
 
 ## Setup
 
@@ -58,6 +62,16 @@ Deliberately left out of the first build to keep scope tight — listed here as 
    # Optional — comma-separated ISO 639-1 codes. Defaults to Vietnamese
    # ("vi"). Only applies to newly-generated (cache-miss) lookups.
    TRANSLATE_TARGET_LANGUAGES=vi
+   # Required — from Firebase Console → Project Settings → your web app.
+   # Public-safe values (they identify the project, not authorize anything
+   # on their own — firestore.rules is the real access control), but real
+   # values still have to come from the console.
+   NEXT_PUBLIC_FIREBASE_API_KEY=your-key-here
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=lexi-gemini
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+   NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
    ```
 3. Set up local Firestore credentials via Application Default Credentials:
    ```bash
@@ -77,6 +91,12 @@ Open [http://localhost:3333](http://localhost:3333) (the dev server runs on port
 ## Deploy
 
 This app targets [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) (config in `apphosting.yaml`/`firebase.json`), and the backend is connected to this repo on GitHub — **pushing to `main` triggers an automatic build and rollout**. No manual deploy step for day-to-day changes.
+
+**`firestore.rules` is the one exception** — rules aren't part of the GitHub-triggered build. After changing them, deploy explicitly:
+
+```bash
+firebase deploy --only firestore:rules
+```
 
 ### Setting secrets (Firebase CLI)
 

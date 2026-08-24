@@ -23,7 +23,7 @@ const HISTORY_CAP = 20;
 export function DictionarySearch() {
   const router = useRouter();
   const [word, setWord] = useState("");
-  const history = usePersistedList("lexi.history", { cap: HISTORY_CAP });
+  const history = usePersistedList("history", { cap: HISTORY_CAP });
 
   function goToWord(rawWord: string) {
     const trimmed = rawWord.trim();

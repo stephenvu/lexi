@@ -25,3 +25,39 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Required for sign-in. Public-safe values (not secrets — they identify
+  # the project, firestore.rules is the real access control), but the
+  # REPLACE-ME placeholders below need swapping for the real values from
+  # Firebase Console → Project Settings → your web app before deploying.
+  # Needed at BUILD time too: Next.js inlines NEXT_PUBLIC_* vars into the
+  # client bundle at build, not just at runtime.
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: REPLACE-ME
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: REPLACE-ME
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: lexi-gemini
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: REPLACE-ME
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: REPLACE-ME
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: REPLACE-ME
+    availability:
+      - BUILD
+      - RUNTIME

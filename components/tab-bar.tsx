@@ -17,6 +17,8 @@ const TABS = [
 export function TabBar() {
   const pathname = usePathname()
 
+  if (pathname === "/login") return null
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-3">
       <div className="glass-tabbar grid w-full max-w-sm grid-cols-3 gap-1 rounded-[30px] p-1.5">

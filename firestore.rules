@@ -1,10 +1,18 @@
 rules_version = '2';
 
-// The dictionary app has no client-side Firebase usage — only the server's
-// Admin SDK (in lib/firebase-admin.ts) reads/writes the "definitions" cache,
-// which bypasses these rules entirely. Deny all direct client access.
+// The `definitions`/`rateLimits` collections are still Admin-SDK-only —
+// only the server (lib/firebase-admin.ts) touches those, so they stay
+// deny-all. `users/{userId}` is the one collection real clients read/write
+// directly (lib/use-persisted-list.ts, lib/use-srs-cards.ts,
+// lib/migrate-local-data.ts, via the client Firebase Auth SDK), so it gets
+// a real owner-only rule: a signed-in user can only ever touch their own
+// doc, keyed by their own uid.
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

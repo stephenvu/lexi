@@ -1,4 +1,5 @@
 import { applicationDefault, getApps, initializeApp } from "firebase-admin/app"
+import { getAuth } from "firebase-admin/auth"
 import { getFirestore } from "firebase-admin/firestore"
 
 // Credentials auto-detect:
@@ -33,3 +34,4 @@ function createApp() {
 const app = getApps()[0] ?? createApp()
 
 export const db = getFirestore(app)
+export const auth = getAuth(app)

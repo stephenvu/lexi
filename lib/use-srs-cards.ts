@@ -1,114 +1,43 @@
 "use client"
 
 import { useCallback, useSyncExternalStore } from "react"
+import { Timestamp } from "firebase/firestore"
 import { createEmptyCard, fsrs, Rating, type Card, type Grade } from "ts-fsrs"
 
-const STORAGE_KEY = "lexi.srs"
+import { useAuth } from "@/lib/use-auth"
+import {
+  EMPTY_USER_DOC,
+  getUserDocSnapshot,
+  isUserDocLoaded,
+  subscribeToUserDoc,
+  writeUserDocFields,
+} from "@/lib/use-user-doc"
 
-type Listener = () => void
-
-// Same architecture as lib/use-persisted-list.ts (module-level cache,
-// useSyncExternalStore, cross-tab `storage`-event sync), generalized for a
-// keyed map of FSRS Card objects instead of a plain string array — there's
-// only ever one SRS store, so no per-key parameterization is needed here.
-const listeners = new Set<Listener>()
-let cache: Record<string, Card> | null = null
-
-// Card.due/last_review are Dates — JSON doesn't round-trip those on its
-// own, so they're serialized to ISO strings for storage and revived here.
-type SerializedCard = Omit<Card, "due" | "last_review"> & {
-  due: string
-  last_review: string | null
+// Card.due/last_review are Dates. Firestore stores Dates as Timestamps
+// natively on write (no manual ISO-string round-tripping the way
+// localStorage needed), but hands back Timestamp instances on read, so
+// those need converting back to real Dates for ts-fsrs to use.
+function toDate(value: unknown): Date {
+  return value instanceof Timestamp ? value.toDate() : new Date(value as string)
 }
 
-function serialize(card: Card): SerializedCard {
+function fromFirestoreCard(data: Record<string, unknown>): Card {
   return {
-    ...card,
-    due: card.due.toISOString(),
-    last_review: card.last_review ? card.last_review.toISOString() : null,
-  }
-}
-
-function deserialize(serialized: SerializedCard): Card {
-  return {
-    ...serialized,
-    due: new Date(serialized.due),
-    last_review: serialized.last_review ? new Date(serialized.last_review) : undefined,
-  }
-}
-
-function readFromStorage(): Record<string, Card> {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as Record<string, SerializedCard>
-    const cards: Record<string, Card> = {}
-    for (const [word, serialized] of Object.entries(parsed)) {
-      cards[word] = deserialize(serialized)
-    }
-    return cards
-  } catch {
-    // Malformed JSON from a previous version, or localStorage inaccessible
-    // (private browsing, disabled storage) — treat as empty rather than throw.
-    return {}
-  }
-}
-
-// A single stable reference for the same reason lib/use-persisted-list.ts's
-// EMPTY_LIST is — useSyncExternalStore requires getServerSnapshot to return
-// the same value across calls.
-const EMPTY_CARDS: Record<string, Card> = {}
-
-function getSnapshot(): Record<string, Card> {
-  if (typeof window === "undefined") return EMPTY_CARDS
-  if (!cache) {
-    cache = readFromStorage()
-  }
-  return cache
-}
-
-function getServerSnapshot(): Record<string, Card> {
-  return EMPTY_CARDS
-}
-
-function notify() {
-  listeners.forEach((listener) => listener())
-}
-
-function writeToStorage(cards: Record<string, Card>) {
-  cache = cards
-  try {
-    const serialized: Record<string, SerializedCard> = {}
-    for (const [word, card] of Object.entries(cards)) {
-      serialized[word] = serialize(card)
-    }
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized))
-  } catch {
-    // Storage unavailable/full — the in-memory cache still works for the
-    // rest of this session; persistence silently degrades, doesn't crash.
-  }
-  notify()
-}
-
-function subscribe(listener: Listener) {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-// Cross-tab sync: another tab writing this key fires a "storage" event here.
-if (typeof window !== "undefined") {
-  window.addEventListener("storage", (event) => {
-    if (event.key === STORAGE_KEY) {
-      cache = null // force a re-read from storage on next getSnapshot
-      notify()
-    }
-  })
+    ...data,
+    due: toDate(data.due),
+    last_review: data.last_review ? toDate(data.last_review) : undefined,
+  } as Card
 }
 
 // Single scheduler instance, default parameters — matches this app's
 // existing "one module-level client singleton" convention (lib/gemini.ts,
 // lib/translate.ts).
 const scheduler = fsrs()
+
+// A stable reference for when srsCards is absent — a fresh `{}` literal
+// every render would make getCard's useCallback dep look like it changed
+// every time even when nothing did.
+const EMPTY_CARDS: Record<string, unknown> = {}
 
 export type SrsCards = {
   /** The persisted card for this word, or a freshly-computed (not yet
@@ -123,20 +52,39 @@ export type SrsCards = {
   /** Deletes a word's card — call when un-favoriting, so no orphaned
    * scheduling state survives a word leaving the deck. */
   remove: (word: string) => void
+  isLoading: boolean
 }
 
 /**
- * localStorage-backed FSRS card store, one Card per favorited word, shared
- * across hook instances and browser tabs.
+ * FSRS card store, one Card per favorited word, stored as the `srsCards`
+ * field on the signed-in user's users/{uid} Firestore doc (the same doc
+ * lib/use-persisted-list.ts's favorites/history live on, via
+ * lib/use-user-doc.ts's shared subscription) — synced in real time across
+ * every tab/device signed into the same account.
  */
 export function useSrsCards(): SrsCards {
-  const cards = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  const { user } = useAuth()
+  const uid = user?.uid ?? null
 
-  const getCard = useCallback((word: string) => cards[word] ?? createEmptyCard(), [cards])
+  const userDoc = useSyncExternalStore(
+    useCallback((listener: () => void) => subscribeToUserDoc(uid, listener), [uid]),
+    useCallback(() => getUserDocSnapshot(uid), [uid]),
+    () => EMPTY_USER_DOC
+  )
+
+  const cards = userDoc.srsCards ?? EMPTY_CARDS
+
+  const getCard = useCallback(
+    (word: string) => {
+      const stored = cards[word]
+      return stored ? fromFirestoreCard(stored as Record<string, unknown>) : createEmptyCard()
+    },
+    [cards]
+  )
 
   const previewIntervals = useCallback(
     (word: string) => {
-      const current = cards[word] ?? createEmptyCard()
+      const current = getCard(word)
       const preview = scheduler.repeat(current, new Date())
       return {
         [Rating.Again]: preview[Rating.Again].card.due,
@@ -145,23 +93,37 @@ export function useSrsCards(): SrsCards {
         [Rating.Easy]: preview[Rating.Easy].card.due,
       } as Record<Grade, Date>
     },
-    [cards]
+    [getCard]
   )
 
-  const rate = useCallback((word: string, rating: Grade) => {
-    const current = getSnapshot()[word] ?? createEmptyCard()
-    const { card } = scheduler.next(current, new Date(), rating)
-    writeToStorage({ ...getSnapshot(), [word]: card })
-    return card
-  }, [])
+  const rate = useCallback(
+    (word: string, rating: Grade) => {
+      if (!uid) return createEmptyCard()
+      const current = getCard(word)
+      const { card } = scheduler.next(current, new Date(), rating)
+      const currentCards = (getUserDocSnapshot(uid).srsCards ?? {}) as Record<string, unknown>
+      writeUserDocFields(uid, { srsCards: { ...currentCards, [word]: { ...card } } })
+      return card
+    },
+    [uid, getCard]
+  )
 
-  const remove = useCallback((word: string) => {
-    const current = getSnapshot()
-    if (!(word in current)) return
-    const next = { ...current }
-    delete next[word]
-    writeToStorage(next)
-  }, [])
+  const remove = useCallback(
+    (word: string) => {
+      if (!uid) return
+      const currentCards = { ...(getUserDocSnapshot(uid).srsCards ?? {}) } as Record<string, unknown>
+      if (!(word in currentCards)) return
+      delete currentCards[word]
+      writeUserDocFields(uid, { srsCards: currentCards })
+    },
+    [uid]
+  )
 
-  return { getCard, previewIntervals, rate, remove }
+  return {
+    getCard,
+    previewIntervals,
+    rate,
+    remove,
+    isLoading: uid !== null && !isUserDocLoaded(uid),
+  }
 }

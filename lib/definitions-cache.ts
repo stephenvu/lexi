@@ -141,8 +141,9 @@ async function writeCache(key: string, result: DefinitionResult): Promise<void> 
  * successful Gemini lookup should still be returned even if Firestore is
  * temporarily unavailable.
  *
- * `ip` gates only the cache-miss path below (a rate limit on new Gemini
- * calls, the actual cost driver) — cache hits are free and stay unlimited.
+ * `uid` (the signed-in user, from the caller's verified session cookie)
+ * gates only the cache-miss path below (a rate limit on new Gemini calls,
+ * the actual cost driver) — cache hits are free and stay unlimited.
  *
  * Concurrent requests for the *same* word are coalesced on both the
  * cache-miss (generation) and cache-hit (translation backfill, see
@@ -150,7 +151,7 @@ async function writeCache(key: string, result: DefinitionResult): Promise<void> 
  * work; any others arriving before it finishes just await that same
  * result.
  */
-export async function getDefinition(rawWord: string, ip: string): Promise<DefinitionResult> {
+export async function getDefinition(rawWord: string, uid: string): Promise<DefinitionResult> {
   const key = normalizeWord(rawWord).toLowerCase()
 
   const cached = await readCache(key)
@@ -159,7 +160,7 @@ export async function getDefinition(rawWord: string, ip: string): Promise<Defini
   }
 
   return coalesce(inFlightGenerations, key, async () => {
-    await checkRateLimit(ip)
+    await checkRateLimit(uid)
 
     const generated = await generateDefinition(rawWord)
     const withTranslations = await attachTranslations(generated)

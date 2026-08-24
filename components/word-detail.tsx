@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpenIcon,
@@ -61,11 +61,23 @@ export function WordDetail({ word }: { word: string }) {
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set([0]));
 
   const { isSpeaking, speak } = useSpeech();
-  const { add: addToHistory } = usePersistedList("lexi.history", {
+  const { add: addToHistory } = usePersistedList("history", {
     cap: HISTORY_CAP,
   });
-  const favorites = usePersistedList("lexi.favorites");
+  const favorites = usePersistedList("favorites");
   const srsCards = useSrsCards();
+
+  // usePersistedList's `add` is now Firestore-backed and depends on the
+  // signed-in uid (unavailable for a brief moment while useAuth() resolves
+  // client-side), so its identity changes once auth settles. Reading it
+  // through a ref — rather than putting addToHistory directly in the
+  // effect's deps — keeps the word-lookup effect below from re-firing (and
+  // re-fetching the same word a second time) purely because auth resolved
+  // partway through.
+  const addToHistoryRef = useRef(addToHistory);
+  useEffect(() => {
+    addToHistoryRef.current = addToHistory;
+  }, [addToHistory]);
 
   useEffect(() => {
     // A boolean "cancelled" flag only gates the setState calls below — it
@@ -105,7 +117,7 @@ export function WordDetail({ word }: { word: string }) {
           return;
         }
 
-        addToHistory(data.word);
+        addToHistoryRef.current(data.word);
         setState({ status: "success", data });
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
@@ -121,7 +133,7 @@ export function WordDetail({ word }: { word: string }) {
     return () => {
       controller.abort();
     };
-  }, [word, addToHistory]);
+  }, [word]);
 
   function goToWord(rawWord: string) {
     const trimmed = rawWord.trim();
@@ -181,6 +193,7 @@ export function WordDetail({ word }: { word: string }) {
             variant="glass"
             size="icon"
             className="shrink-0 rounded-full"
+            disabled={favorites.isLoading}
             onClick={() => {
               if (isFavorite) {
                 favorites.remove(state.data.word);
@@ -195,7 +208,11 @@ export function WordDetail({ word }: { word: string }) {
                 : `Save ${state.data.word} to favorites`
             }
           >
-            <StarIcon fill={isFavorite ? "currentColor" : "none"} />
+            {favorites.isLoading ? (
+              <Spinner />
+            ) : (
+              <StarIcon fill={isFavorite ? "currentColor" : "none"} />
+            )}
           </Button>
         )}
       </div>
