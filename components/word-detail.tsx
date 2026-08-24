@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BookOpenIcon,
   ChevronDownIcon,
@@ -9,11 +9,11 @@ import {
   SearchIcon,
   StarIcon,
   Volume2Icon,
-} from "lucide-react"
+} from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyContent,
@@ -21,30 +21,33 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
+} from "@/components/ui/empty";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@/components/ui/input-group"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Spinner } from "@/components/ui/spinner"
-import type { DefinitionResult } from "@/lib/gemini"
-import { usePersistedList } from "@/lib/use-persisted-list"
-import { useSpeech } from "@/lib/use-speech"
-import { capitalizeFirstLetter, cn } from "@/lib/utils"
+} from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import type { DefinitionResult } from "@/lib/gemini";
+import { usePersistedList } from "@/lib/use-persisted-list";
+import { useSrsCards } from "@/lib/use-srs-cards";
+import { useSpeech } from "@/lib/use-speech";
+import { capitalizeFirstLetter, cn } from "@/lib/utils";
 
-const HISTORY_CAP = 20
+const HISTORY_CAP = 20;
 
 // Renders a translation's ISO 639-1 "lang" code (e.g. "vi") as a display
 // name (e.g. "Vietnamese") — no hardcoded name-lookup table needed.
-const languageDisplayNames = new Intl.DisplayNames(["en"], { type: "language" })
+const languageDisplayNames = new Intl.DisplayNames(["en"], {
+  type: "language",
+});
 
 type State =
   | { status: "loading" }
   | { status: "success"; data: DefinitionResult }
   | { status: "not-found"; message: string | null; suggestion: string | null }
-  | { status: "error"; message: string }
+  | { status: "error"; message: string };
 
 // The full lookup for a single word — pushed from Home's search, a recent
 // lookup, a Library Saved row, or a synonym/antonym chip tapped on this
@@ -52,14 +55,17 @@ type State =
 // so navigating between words remounts fresh rather than needing an effect
 // to reset state.
 export function WordDetail({ word }: { word: string }) {
-  const router = useRouter()
-  const [state, setState] = useState<State>({ status: "loading" })
-  const [query, setQuery] = useState("")
-  const [expanded, setExpanded] = useState<Set<number>>(() => new Set([0]))
+  const router = useRouter();
+  const [state, setState] = useState<State>({ status: "loading" });
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set([0]));
 
-  const { isSpeaking, speak } = useSpeech()
-  const { add: addToHistory } = usePersistedList("lexi.history", { cap: HISTORY_CAP })
-  const favorites = usePersistedList("lexi.favorites")
+  const { isSpeaking, speak } = useSpeech();
+  const { add: addToHistory } = usePersistedList("lexi.history", {
+    cap: HISTORY_CAP,
+  });
+  const favorites = usePersistedList("lexi.favorites");
+  const srsCards = useSrsCards();
 
   useEffect(() => {
     // A boolean "cancelled" flag only gates the setState calls below — it
@@ -69,65 +75,79 @@ export function WordDetail({ word }: { word: string }) {
     // simultaneously. A real AbortController fixes that: the first
     // invocation's request is genuinely cancelled before it reaches the
     // server, not just ignored after the fact.
-    const controller = new AbortController()
+    const controller = new AbortController();
 
     async function load() {
       try {
-        const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
-          signal: controller.signal,
-        })
-        const body = await response.json()
+        const response = await fetch(
+          `/api/define?word=${encodeURIComponent(word)}`,
+          {
+            signal: controller.signal,
+          },
+        );
+        const body = await response.json();
 
         if (body.status !== "ok") {
-          setState({ status: "error", message: body.message ?? "Something went wrong." })
-          return
+          setState({
+            status: "error",
+            message: body.message ?? "Something went wrong.",
+          });
+          return;
         }
 
-        const data = body.data as DefinitionResult
+        const data = body.data as DefinitionResult;
         if (!data.found) {
-          setState({ status: "not-found", message: data.message, suggestion: data.suggestion })
-          return
+          setState({
+            status: "not-found",
+            message: data.message,
+            suggestion: data.suggestion,
+          });
+          return;
         }
 
-        addToHistory(data.word)
-        setState({ status: "success", data })
+        addToHistory(data.word);
+        setState({ status: "success", data });
       } catch (error) {
-        if ((error as Error).name === "AbortError") return
-        setState({ status: "error", message: "Something went wrong. Please try again." })
+        if ((error as Error).name === "AbortError") return;
+        setState({
+          status: "error",
+          message: "Something went wrong. Please try again.",
+        });
       }
     }
 
-    load()
+    load();
 
     return () => {
-      controller.abort()
-    }
-  }, [word, addToHistory])
+      controller.abort();
+    };
+  }, [word, addToHistory]);
 
   function goToWord(rawWord: string) {
-    const trimmed = rawWord.trim()
-    if (!trimmed) return
-    router.push(`/word/${encodeURIComponent(trimmed)}`)
+    const trimmed = rawWord.trim();
+    if (!trimmed) return;
+    router.push(`/word/${encodeURIComponent(trimmed)}`);
   }
 
   function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    goToWord(query)
+    event.preventDefault();
+    goToWord(query);
   }
 
   function toggleSense(index: number) {
     setExpanded((current) => {
-      const next = new Set(current)
+      const next = new Set(current);
       if (next.has(index)) {
-        next.delete(index)
+        next.delete(index);
       } else {
-        next.add(index)
+        next.add(index);
       }
-      return next
-    })
+      return next;
+    });
   }
 
-  const isFavorite = state.status === "success" && favorites.has(state.data.word)
+  const isFavorite =
+    state.status === "success" && favorites.has(state.data.word);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -161,9 +181,14 @@ export function WordDetail({ word }: { word: string }) {
             variant="glass"
             size="icon"
             className="shrink-0 rounded-full"
-            onClick={() =>
-              isFavorite ? favorites.remove(state.data.word) : favorites.add(state.data.word)
-            }
+            onClick={() => {
+              if (isFavorite) {
+                favorites.remove(state.data.word);
+                srsCards.remove(state.data.word);
+              } else {
+                favorites.add(state.data.word);
+              }
+            }}
             aria-label={
               isFavorite
                 ? `Remove ${state.data.word} from favorites`
@@ -193,20 +218,29 @@ export function WordDetail({ word }: { word: string }) {
               <span className="font-heading text-[36px] leading-tight font-semibold tracking-tight">
                 {capitalizeFirstLetter(state.data.word)}
               </span>
-              {state.data.cefrLevel && <Badge variant="secondary">{state.data.cefrLevel}</Badge>}
+              {state.data.cefrLevel && (
+                <Badge variant="secondary">{state.data.cefrLevel}</Badge>
+              )}
             </div>
             {(state.data.ipa || state.data.syllables) && (
-              <div className="flex items-center gap-2">
-                {state.data.ipa && (
-                  <span className="font-mono text-muted-foreground">{state.data.ipa}</span>
-                )}
-                {state.data.syllables && (
-                  <span className="text-muted-foreground">{state.data.syllables}</span>
-                )}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col gap-0.5">
+                  {state.data.ipa && (
+                    <span className="font-mono text-muted-foreground">
+                      {state.data.ipa}
+                    </span>
+                  )}
+                  {state.data.syllables && (
+                    <span className="text-muted-foreground">
+                      {state.data.syllables}
+                    </span>
+                  )}
+                </div>
+
                 <Button
                   type="button"
                   variant="glass"
-                  size="icon-sm"
+                  size="icon-lg"
                   onClick={() => speak(state.data.word)}
                   aria-label={`Play pronunciation of ${state.data.word}`}
                 >
@@ -220,13 +254,14 @@ export function WordDetail({ word }: { word: string }) {
 
           <div className="flex flex-col">
             {state.data.entries.map((entry, index) => {
-              const isExpanded = expanded.has(index)
+              const isExpanded = expanded.has(index);
               return (
                 <div
                   key={index}
                   className={cn(
                     "flex flex-col gap-3",
-                    index > 0 && "mt-3 border-t border-[rgba(60,60,67,0.16)] pt-3"
+                    index > 0 &&
+                      "mt-3 border-t border-[rgba(60,60,67,0.16)] pt-3",
                   )}
                 >
                   <button
@@ -240,7 +275,7 @@ export function WordDetail({ word }: { word: string }) {
                     <ChevronDownIcon
                       className={cn(
                         "size-[18px] shrink-0 text-muted-foreground/60 transition-transform",
-                        isExpanded && "rotate-180"
+                        isExpanded && "rotate-180",
                       )}
                     />
                   </button>
@@ -249,7 +284,9 @@ export function WordDetail({ word }: { word: string }) {
                     <>
                       <p>{entry.definition}</p>
                       {entry.usageNote && (
-                        <p className="text-sm text-muted-foreground">{entry.usageNote}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {entry.usageNote}
+                        </p>
                       )}
                       {entry.translations.map((translation) => (
                         <div
@@ -257,12 +294,14 @@ export function WordDetail({ word }: { word: string }) {
                           className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4"
                         >
                           <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                            {languageDisplayNames.of(translation.lang) ?? translation.lang}
+                            {languageDisplayNames.of(translation.lang) ??
+                              translation.lang}
                           </span>
                           <p className="text-sm">
                             {translation.word && (
                               <span className="font-semibold">
-                                {capitalizeFirstLetter(translation.word)}{" "}
+                                {capitalizeFirstLetter(translation.word)}
+                                {" - "}
                               </span>
                             )}
                             {translation.meaning}
@@ -273,7 +312,9 @@ export function WordDetail({ word }: { word: string }) {
                         <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                           Example
                         </span>
-                        <p className="text-sm italic">&ldquo;{entry.example}&rdquo;</p>
+                        <p className="text-sm italic">
+                          &ldquo;{entry.example}&rdquo;
+                        </p>
                       </div>
                       {entry.synonyms.length > 0 && (
                         <div className="flex flex-col gap-2">
@@ -282,7 +323,11 @@ export function WordDetail({ word }: { word: string }) {
                           </span>
                           <div className="flex flex-wrap gap-2">
                             {entry.synonyms.map((synonym) => (
-                              <button key={synonym} type="button" onClick={() => goToWord(synonym)}>
+                              <button
+                                key={synonym}
+                                type="button"
+                                onClick={() => goToWord(synonym)}
+                              >
                                 <Badge variant="secondary">{synonym}</Badge>
                               </button>
                             ))}
@@ -296,7 +341,11 @@ export function WordDetail({ word }: { word: string }) {
                           </span>
                           <div className="flex flex-wrap gap-2">
                             {entry.antonyms.map((antonym) => (
-                              <button key={antonym} type="button" onClick={() => goToWord(antonym)}>
+                              <button
+                                key={antonym}
+                                type="button"
+                                onClick={() => goToWord(antonym)}
+                              >
                                 <Badge variant="secondary">{antonym}</Badge>
                               </button>
                             ))}
@@ -305,10 +354,12 @@ export function WordDetail({ word }: { word: string }) {
                       )}
                     </>
                   ) : (
-                    <p className="truncate text-sm text-muted-foreground">{entry.definition}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {entry.definition}
+                    </p>
                   )}
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -347,5 +398,5 @@ export function WordDetail({ word }: { word: string }) {
         </Alert>
       )}
     </div>
-  )
+  );
 }
