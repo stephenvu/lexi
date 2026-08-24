@@ -32,12 +32,12 @@ env:
   # Needed at BUILD time too: Next.js inlines NEXT_PUBLIC_* vars into the
   # client bundle at build, not just at runtime.
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: REPLACE-ME
+    value: AIzaSyBxdYZi-c7nXRT2_7X-FOlV8J-OWvNYZ00
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: REPLACE-ME
+    value: lexi-gemini.firebaseapp.com
     availability:
       - BUILD
       - RUNTIME
@@ -47,17 +47,17 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: REPLACE-ME
+    value: lexi-gemini.firebasestorage.app
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: REPLACE-ME
+    value: 546019267933
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: REPLACE-ME
+    value: 1:546019267933:web:590db7b46555e29ded84b4
     availability:
       - BUILD
       - RUNTIME
