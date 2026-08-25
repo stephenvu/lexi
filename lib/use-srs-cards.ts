@@ -44,6 +44,12 @@ export type SrsCards = {
    * persisted) one if it's never been reviewed — its `due` defaults to
    * "now," so a just-favorited word is immediately due. */
   getCard: (word: string) => Card
+  /** Whether this word has a real stored schedule — `getCard` can't tell
+   * you this on its own, since it falls back to a fresh (but unpersisted)
+   * card for a word that's never been reviewed. Used to distinguish
+   * "genuinely new" from "has a real due date" when sourcing a large
+   * pre-loaded deck (see lib/deck-study.ts) rather than favorites. */
+  hasCard: (word: string) => boolean
   /** The resulting `due` date for each of the 4 ratings, for labeling
    * rating buttons with their outcome before the user picks one. */
   previewIntervals: (word: string) => Record<Grade, Date>
@@ -81,6 +87,8 @@ export function useSrsCards(): SrsCards {
     },
     [cards]
   )
+
+  const hasCard = useCallback((word: string) => word in cards, [cards])
 
   const previewIntervals = useCallback(
     (word: string) => {
@@ -121,6 +129,7 @@ export function useSrsCards(): SrsCards {
 
   return {
     getCard,
+    hasCard,
     previewIntervals,
     rate,
     remove,

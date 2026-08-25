@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { GraduationCapIcon, Volume2Icon } from "lucide-react"
 import { Rating, type Grade } from "ts-fsrs"
 
@@ -18,7 +19,9 @@ import {
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import { selectWordsToStudy } from "@/lib/deck-study"
 import type { DefinitionResult } from "@/lib/gemini"
+import { useDecks } from "@/lib/use-decks"
 import { usePersistedList } from "@/lib/use-persisted-list"
 import { useSrsCards, type SrsCards } from "@/lib/use-srs-cards"
 import { useSpeech } from "@/lib/use-speech"
@@ -35,6 +38,8 @@ const RATING_BUTTONS = [
   { rating: Rating.Good, label: "Good" },
   { rating: Rating.Easy, label: "Easy" },
 ] as const
+
+const EMPTY_WORDS: string[] = []
 
 function shuffle<T>(items: T[]): T[] {
   const copy = [...items]
@@ -101,44 +106,65 @@ type ViewState =
   | { status: "reviewing"; queue: DefinitionResult[]; index: number }
 
 export function StudyFlashcards() {
+  const searchParams = useSearchParams()
+  const deckId = searchParams.get("deck")
+
   const favorites = usePersistedList("favorites")
+  const { decks, isLoading: decksLoading } = useDecks()
   const srsCards = useSrsCards()
-  // Derived directly from favorites, not stored in state — there's nothing
-  // to fetch when there are no favorites, so this needs no effect at all.
-  // False while favorites is still loading (rather than judging by the
-  // empty `items` a loading state starts with) — otherwise a user who
-  // does have favorites would see a "No favorites yet" flash before their
-  // real data arrives from Firestore.
-  const isEmpty = !favorites.isLoading && favorites.items.length === 0
+
+  const deck = deckId ? (decks.find((d) => d.id === deckId) ?? null) : null
+
+  // The word list to study from, and whether it's still loading — differs
+  // by source (favorites vs. a specific pre-loaded deck), but everything
+  // downstream (due-filtering, the review queue, rating) is identical
+  // either way, since SRS scheduling is per-word, not per-source.
+  const sourceWords = deckId ? (deck?.words ?? EMPTY_WORDS) : favorites.items
+  const sourceLoading = deckId ? decksLoading : favorites.isLoading
+  // Favorites has its own "you haven't favorited anything" empty state
+  // ("go look something up"), distinct from "nothing due right now." A
+  // deck is never in that first state — it either doesn't exist (an
+  // invalid ?deck= value) or it has words, handled by deckNotFound below.
+  const isEmpty = !deckId && !sourceLoading && sourceWords.length === 0
+  const deckNotFound = !!deckId && !decksLoading && !deck
+
   const [viewState, setViewState] = useState<ViewState>({ status: "loading" })
   const [flipped, setFlipped] = useState(false)
   const { isSpeaking, speak } = useSpeech()
 
+  // deckNotFound is a final, render-only state (folded into "all-caught-up"
+  // for display below) rather than something the effect sets via
+  // setViewState — that would be a synchronous setState-in-effect call.
+  const effectiveStatus = deckNotFound ? "all-caught-up" : viewState.status
+
   // Read inside the deck-loading effect without making it reactive to
   // every card-state change — rating a card writes to the SRS store, which
   // would otherwise re-trigger this effect and re-fetch/reshuffle mid
-  // session. Only favorites (add/remove a word) should do that; getCard
-  // itself is read fresh at rating-time directly from srsCards, not through
-  // this ref. Updated in its own effect (not directly in the render body)
-  // since refs aren't meant to be written during render.
+  // session. Only the source word list (favorites changing, or the deck
+  // resolving) should do that; getCard/hasCard are read fresh at
+  // rating/selection-time directly from srsCards, not through these refs.
+  // Updated in their own effect (not directly in the render body) since
+  // refs aren't meant to be written during render.
   const getCardRef = useRef(srsCards.getCard)
+  const hasCardRef = useRef(srsCards.hasCard)
   useEffect(() => {
     getCardRef.current = srsCards.getCard
-  }, [srsCards.getCard])
+    hasCardRef.current = srsCards.hasCard
+  }, [srsCards.getCard, srsCards.hasCard])
 
-  // Pre-fetch every favorited word's (already-cached) definition, then
-  // keep only what's actually due today. The setState below happens after
-  // the await, inside the resolved-promise callback — not synchronously in
-  // the effect body — so this is the sanctioned data-fetching pattern, not
-  // the setState-in-effect anti-pattern.
+  // Pre-fetch definitions for whatever's actually worth fetching, then (for
+  // favorites) narrow to what's due today. The setState below happens
+  // after the await, inside the resolved-promise callback — not
+  // synchronously in the effect body — so this is the sanctioned
+  // data-fetching pattern, not the setState-in-effect anti-pattern.
   useEffect(() => {
-    if (isEmpty) return // nothing to fetch; the empty state renders directly from favorites.items
+    if (isEmpty || deckNotFound) return // nothing to fetch; these render directly, no effect needed
     // Wait for real data before computing anything — srsCards.isLoading
     // isn't in this effect's deps to react to every rating (that's what
-    // getCardRef above is for), but it does need to react to this one
-    // loading -> loaded transition, so the due-queue gets computed against
-    // real schedules rather than every word looking freshly due.
-    if (favorites.isLoading || srsCards.isLoading) return
+    // the refs above are for), but it does need to react to this one
+    // loading -> loaded transition, so the queue gets computed against
+    // real schedules rather than every word looking freshly due/new.
+    if (sourceLoading || srsCards.isLoading) return
 
     // A real AbortController (not just a boolean flag) so React Strict
     // Mode's dev-only double-invoke of effects genuinely cancels the first
@@ -147,8 +173,20 @@ export function StudyFlashcards() {
     const controller = new AbortController()
 
     async function loadDeck() {
+      // Favorites: fetch every favorited word, then filter to due below —
+      // exactly today's existing, unchanged behavior. A deck: only ever
+      // fetch what selectWordsToStudy actually selected (due + a capped
+      // number of never-studied words) — fetching an entire multi-
+      // thousand-word deck on every visit isn't viable.
+      const wordsToFetch = deckId
+        ? selectWordsToStudy(sourceWords, {
+            hasCard: hasCardRef.current,
+            getCard: getCardRef.current,
+          })
+        : sourceWords
+
       const results = await Promise.all(
-        favorites.items.map(async (word) => {
+        wordsToFetch.map(async (word) => {
           try {
             const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
               signal: controller.signal,
@@ -163,12 +201,16 @@ export function StudyFlashcards() {
 
       if (controller.signal.aborted) return
 
-      // Defensive: a favorited word's cache doc should always be found:true
-      // (favoriting only happens from a successful result), but don't let
-      // an unexpected miss break the whole deck.
+      // Defensive: a word's cache doc should always be found:true (a
+      // favorite only exists from a successful lookup; a deck word was
+      // vetted at upload time), but don't let an unexpected miss break the
+      // whole session.
       const valid = results.filter((result): result is DefinitionResult => result?.found === true)
       const now = new Date()
-      const due = valid.filter((entry) => getCardRef.current(entry.word).due <= now)
+      // Deck mode's wordsToFetch is already exactly the due/new selection
+      // — no further filtering needed. Favorites still narrows by due here,
+      // unchanged from before.
+      const due = deckId ? valid : valid.filter((entry) => getCardRef.current(entry.word).due <= now)
 
       setFlipped(false)
       setViewState(
@@ -183,7 +225,7 @@ export function StudyFlashcards() {
     return () => {
       controller.abort()
     }
-  }, [favorites.items, isEmpty, favorites.isLoading, srsCards.isLoading])
+  }, [sourceWords, isEmpty, deckNotFound, sourceLoading, srsCards.isLoading, deckId])
 
   function rate(word: string, rating: Grade) {
     srsCards.rate(word, rating)
@@ -202,13 +244,18 @@ export function StudyFlashcards() {
     viewState.status === "reviewing" ? viewState.queue[viewState.index] : null
   const intervals = card ? srsCards.previewIntervals(card.word) : null
   const nextDue =
-    viewState.status === "all-caught-up" ? earliestDue(favorites.items, srsCards.getCard) : null
+    effectiveStatus === "all-caught-up" && !deckNotFound
+      ? earliestDue(sourceWords, srsCards.getCard)
+      : null
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <h1 className="text-[34px] leading-[41px] font-bold tracking-[-0.4px]">Study</h1>
+      <div className="flex flex-col gap-0.5">
+        <h1 className="text-[34px] leading-[41px] font-bold tracking-[-0.4px]">Study</h1>
+        {deck && <p className="text-sm text-muted-foreground">Studying {deck.name}</p>}
+      </div>
 
-      {!isEmpty && viewState.status === "loading" && (
+      {!isEmpty && !deckNotFound && effectiveStatus === "loading" && (
         <Card>
           <CardContent className="flex flex-col gap-3.5">
             <Skeleton className="h-48 w-full" />
@@ -233,7 +280,7 @@ export function StudyFlashcards() {
         </Empty>
       )}
 
-      {!isEmpty && viewState.status === "all-caught-up" && (
+      {!isEmpty && effectiveStatus === "all-caught-up" && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">

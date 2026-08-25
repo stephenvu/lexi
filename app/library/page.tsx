@@ -17,9 +17,12 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { selectWordsToStudy } from "@/lib/deck-study"
 import type { DefinitionResult } from "@/lib/gemini"
 import { signOutUser, useAuth } from "@/lib/use-auth"
+import { useDecks } from "@/lib/use-decks"
 import { usePersistedList } from "@/lib/use-persisted-list"
+import { useSrsCards } from "@/lib/use-srs-cards"
 import { capitalizeFirstLetter, cn } from "@/lib/utils"
 
 type Segment = "decks" | "saved"
@@ -32,6 +35,8 @@ export default function LibraryPage() {
   const router = useRouter()
   const { user } = useAuth()
   const [segment, setSegment] = useState<Segment>("decks")
+  const { decks, isLoading: decksLoading } = useDecks()
+  const srsCards = useSrsCards()
   const favorites = usePersistedList("favorites")
   // False while favorites is still loading, not just when it's genuinely
   // empty — otherwise a user who does have saved words sees a "No saved
@@ -114,7 +119,16 @@ export default function LibraryPage() {
           ))}
         </div>
 
-        {segment === "decks" && (
+        {segment === "decks" && (decksLoading || srsCards.isLoading) && (
+          <Card>
+            <CardContent className="flex flex-col gap-3.5">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </CardContent>
+          </Card>
+        )}
+
+        {segment === "decks" && !decksLoading && !srsCards.isLoading && decks.length === 0 && (
           <Empty>
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -122,10 +136,39 @@ export default function LibraryPage() {
               </EmptyMedia>
               <EmptyTitle>Coming soon</EmptyTitle>
               <EmptyDescription>
-                Multiple study decks are on the way — for now, all your favorites live under Study.
+                Pre-loaded study decks are on the way — for now, all your favorites live under Study.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
+        )}
+
+        {segment === "decks" && !decksLoading && !srsCards.isLoading && decks.length > 0 && (
+          <div className="glass-surface flex flex-col overflow-hidden rounded-[26px]">
+            {decks.map((deck, index) => {
+              const toStudyCount = selectWordsToStudy(deck.words, srsCards).length
+              return (
+                <Link
+                  key={deck.id}
+                  href={`/study?deck=${encodeURIComponent(deck.id)}`}
+                  className={cn(
+                    "flex min-h-[64px] items-center gap-3 px-[18px] py-3.5",
+                    index < decks.length - 1 && "border-b border-[rgba(60,60,67,0.14)]"
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="font-heading text-lg font-semibold tracking-tight">
+                      {deck.name}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {deck.words.length} cards ·{" "}
+                      {toStudyCount > 0 ? `${toStudyCount} to study` : "All caught up"}
+                    </span>
+                  </div>
+                  <ChevronRightIcon className="size-[18px] shrink-0 text-muted-foreground/50" />
+                </Link>
+              )
+            })}
+          </div>
         )}
 
         {segment === "saved" && isEmpty && (

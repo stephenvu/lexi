@@ -6,11 +6,18 @@ rules_version = '2';
 // directly (lib/use-persisted-list.ts, lib/use-srs-cards.ts,
 // lib/migrate-local-data.ts, via the client Firebase Auth SDK), so it gets
 // a real owner-only rule: a signed-in user can only ever touch their own
-// doc, keyed by their own uid.
+// doc, keyed by their own uid. `decks/{deckId}` (lib/use-decks.ts) is
+// shared, pre-loaded content — any signed-in user can read it, but only
+// the Admin-SDK-driven scripts/upload-deck.mjs ever writes it.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /decks/{deckId} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     match /{document=**} {
