@@ -84,7 +84,7 @@ export default function SettingsPage() {
             <div className="flex min-w-0 items-center gap-3">
               {user.photoURL && (
                 // A plain <img>, not next/image — see the identical note in
-                // components/header.tsx.
+                // components/profile-button.tsx.
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={user.photoURL}
