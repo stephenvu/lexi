@@ -25,10 +25,13 @@ export type PersistedList = {
  * A list of strings, most-recently-added first, stored as a field on the
  * signed-in user's users/{uid} Firestore doc and synced in real time
  * across every tab/device signed into the same account. Used for both
- * search history (capped) and favorites (uncapped) — same mechanism,
- * different field/cap. Access is enforced by firestore.rules (owner-only);
- * there's no signed-out fallback since the whole app requires sign-in
- * (see proxy.ts).
+ * search history (capped) and saved words (uncapped) — same mechanism,
+ * different field/cap. `field` is the actual Firestore field name, not
+ * just a label — "favorites" stays as-is even though every user-facing
+ * surface now calls this "Saved," to avoid a data migration for a
+ * purely-cosmetic rename. Access is enforced by firestore.rules
+ * (owner-only); there's no signed-out fallback since the whole app
+ * requires sign-in (see proxy.ts).
  */
 export function usePersistedList(
   field: "favorites" | "history",

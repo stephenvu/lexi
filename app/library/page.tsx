@@ -18,9 +18,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { selectWordsToStudy } from "@/lib/deck-study"
 import type { DefinitionResult } from "@/lib/gemini"
+import { SAVED_DECK_ID } from "@/lib/use-last-study-deck"
 import { useDecks } from "@/lib/use-decks"
 import { usePersistedList } from "@/lib/use-persisted-list"
-import { useSrsCards } from "@/lib/use-srs-cards"
+import { useSrsCards, type SrsCards } from "@/lib/use-srs-cards"
 import { capitalizeFirstLetter, cn } from "@/lib/utils"
 
 type Segment = "decks" | "saved"
@@ -29,22 +30,35 @@ type SavedState =
   | { status: "loading" }
   | { status: "ready"; words: DefinitionResult[] }
 
+// How many of `words` are actually worth studying right now, uncapped —
+// matches components/study-flashcards.tsx's saved-words behavior exactly
+// (fetch everything, filter to due; never-studied words default to due
+// immediately, same as a freshly-saved word always has been). Deliberately
+// not lib/deck-study.ts's selectWordsToStudy, which caps new words for
+// large pre-loaded decks — a cap saved words has never had and shouldn't
+// gain just because it's now shown alongside real decks.
+function countDueForStudy(words: string[], srsCards: Pick<SrsCards, "getCard">): number {
+  const now = new Date()
+  return words.filter((word) => srsCards.getCard(word).due <= now).length
+}
+
 export default function LibraryPage() {
   const [segment, setSegment] = useState<Segment>("decks")
   const { decks, isLoading: decksLoading } = useDecks()
   const srsCards = useSrsCards()
-  const favorites = usePersistedList("favorites")
-  // False while favorites is still loading, not just when it's genuinely
-  // empty — otherwise a user who does have saved words sees a "No saved
-  // words yet" flash before their real data arrives from Firestore.
-  const isEmpty = !favorites.isLoading && favorites.items.length === 0
+  const saved = usePersistedList("favorites")
+  // False while saved words are still loading, not just when the list is
+  // genuinely empty — otherwise a user who does have saved words sees a
+  // "No saved words yet" flash before their real data arrives from
+  // Firestore.
+  const isEmpty = !saved.isLoading && saved.items.length === 0
   const [savedState, setSavedState] = useState<SavedState>({ status: "loading" })
 
-  // Same read-through pattern as the Study deck: favorites are always
-  // cached already (favoriting only happens after a successful lookup), so
+  // Same read-through pattern as the Study deck: saved words are always
+  // cached already (saving only happens after a successful lookup), so
   // this is just re-fetching already-known data, not billing anything new.
   useEffect(() => {
-    if (isEmpty || favorites.isLoading) return
+    if (isEmpty || saved.isLoading) return
 
     // A real AbortController (not just a boolean flag) so React Strict
     // Mode's dev-only double-invoke of effects genuinely cancels the first
@@ -54,7 +68,7 @@ export default function LibraryPage() {
 
     async function loadSaved() {
       const results = await Promise.all(
-        favorites.items.map(async (word) => {
+        saved.items.map(async (word) => {
           try {
             const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
               signal: controller.signal,
@@ -78,7 +92,7 @@ export default function LibraryPage() {
     return () => {
       controller.abort()
     }
-  }, [favorites.items, isEmpty, favorites.isLoading])
+  }, [saved.items, isEmpty, saved.isLoading])
 
   return (
     <div className="flex flex-1 items-start justify-center px-4 py-16 sm:py-24">
@@ -108,7 +122,7 @@ export default function LibraryPage() {
           ))}
         </div>
 
-        {segment === "decks" && (decksLoading || srsCards.isLoading) && (
+        {segment === "decks" && (decksLoading || srsCards.isLoading || saved.isLoading) && (
           <Card>
             <CardContent className="flex flex-col gap-3.5">
               <Skeleton className="h-14 w-full" />
@@ -117,31 +131,30 @@ export default function LibraryPage() {
           </Card>
         )}
 
-        {segment === "decks" && !decksLoading && !srsCards.isLoading && decks.length === 0 && (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <LibraryIcon />
-              </EmptyMedia>
-              <EmptyTitle>Coming soon</EmptyTitle>
-              <EmptyDescription>
-                Pre-loaded study decks are on the way — for now, all your favorites live under Study.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-
-        {segment === "decks" && !decksLoading && !srsCards.isLoading && decks.length > 0 && (
+        {segment === "decks" && !decksLoading && !srsCards.isLoading && !saved.isLoading && (
           <div className="glass-surface flex flex-col overflow-hidden rounded-[26px]">
-            {decks.map((deck, index) => {
-              const toStudyCount = selectWordsToStudy(deck.words, srsCards).length
+            {/* Saved words always leads the list — it's the user's own deck,
+                not a pre-loaded one, so it's never subject to "no decks
+                configured yet" the way the rest of this list theoretically
+                could be. */}
+            {[
+              { id: SAVED_DECK_ID, name: "Saved words", words: saved.items },
+              ...decks,
+            ].map((deck, index, all) => {
+              // Saved words has never had (and shouldn't gain here) the
+              // capped-new-words behavior real decks need at Oxford-3000
+              // scale — see countDueForStudy above.
+              const toStudyCount =
+                deck.id === SAVED_DECK_ID
+                  ? countDueForStudy(deck.words, srsCards)
+                  : selectWordsToStudy(deck.words, srsCards).length
               return (
                 <Link
                   key={deck.id}
                   href={`/study?deck=${encodeURIComponent(deck.id)}`}
                   className={cn(
                     "flex min-h-[64px] items-center gap-3 px-[18px] py-3.5",
-                    index < decks.length - 1 && "border-b border-[rgba(60,60,67,0.14)]"
+                    index < all.length - 1 && "border-b border-[rgba(60,60,67,0.14)]"
                   )}
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -168,7 +181,7 @@ export default function LibraryPage() {
               </EmptyMedia>
               <EmptyTitle>No saved words yet</EmptyTitle>
               <EmptyDescription>
-                Favorite a word from a lookup and it will show up here.
+                Save a word from a lookup and it will show up here.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>

@@ -19,9 +19,9 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 - **Difficulty indicator** — each word labeled with its CEFR level (A1–C2), returned by Gemini as part of the same definition response. Shown on both the search result card and flashcards.
 - **Bilingual definitions** — each sense also translated (word + meaning) via the Google Cloud Translation API, into a single target language you pick yourself on the Settings page (defaults to English, meaning no translation shown — English is already the dictionary's own language). Translations are cached per (word, language) pair in Firestore, so switching languages reuses anything already translated for anyone else who picked the same one. Gracefully skipped (no crash, just an empty array) if `GOOGLE_TRANSLATE_API_KEY` isn't set.
 - **Settings page** — reached via the avatar in the top-right header (not a bottom-nav tab): account info/sign-out and the bilingual-translation target language live here.
-- **Authentication & cross-device sync** — Google Sign-In, required to use the app. Favorite words, lookup history, study scheduling, and your target-language preference all live in Firestore under your account (`users/{uid}`) and sync in real time across every device signed into it — see `specs/authentication.md`.
-- **Saved words & history** — favorite words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box.
-- **Study features** — spaced repetition through your favorites via [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) on `/study`: only what's actually due gets reviewed, rated Again/Hard/Good/Easy.
+- **Authentication & cross-device sync** — Google Sign-In, required to use the app. Saved words, lookup history, study scheduling, and your target-language preference all live in Firestore under your account (`users/{uid}`) and sync in real time across every device signed into it — see `specs/authentication.md`.
+- **Saved words & history** — saved words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box.
+- **Study features** — spaced repetition via [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) on `/study`: only what's actually due gets reviewed, rated Again/Hard/Good/Easy. Library/Decks lists your saved words as a deck of their own alongside pre-loaded decks (e.g. Oxford 3000); visiting `/study` with no deck specified resumes whichever one you last studied.
 - **Cost safety net** — new-word lookups (the ones that actually call Gemini; repeat/cached lookups are unaffected) are rate-limited per signed-in user in production. A safety net against a runaway bill, not attacker-resistant abuse prevention — see the "Cost safety net" note under Deploy below.
 - **Installable (PWA)** — a web app manifest + a minimal service worker make Lexi installable to a home screen/desktop via the browser's native install affordance (no custom install button — [Next.js's own guidance](https://nextjs.org/docs/app/guides/progressive-web-apps) is against `beforeinstallprompt`, since it doesn't work on Safari iOS). Offline support and push notifications are separate, unimplemented features.
 
@@ -31,7 +31,6 @@ Deliberately left out of the first build to keep scope tight — listed here as 
 
 - **Etymology & related/confusable words** — deferred from the Richer Lookups pass; see `specs/richer-lookups.md`.
 - **Firebase App Check** — a stronger, attacker-resistant anti-abuse layer than the current per-user rate limit, at the cost of a reCAPTCHA registration.
-- **Pre-loaded decks** — Library's "Decks" tab is still a placeholder; today's `/study` only ever reviews your favorites (see `specs/authentication.md`'s data model, which this would build on).
 
 ## Prerequisites
 

@@ -42,29 +42,29 @@ const EMPTY_CARDS: Record<string, unknown> = {}
 export type SrsCards = {
   /** The persisted card for this word, or a freshly-computed (not yet
    * persisted) one if it's never been reviewed — its `due` defaults to
-   * "now," so a just-favorited word is immediately due. */
+   * "now," so a just-saved word is immediately due. */
   getCard: (word: string) => Card
   /** Whether this word has a real stored schedule — `getCard` can't tell
    * you this on its own, since it falls back to a fresh (but unpersisted)
    * card for a word that's never been reviewed. Used to distinguish
    * "genuinely new" from "has a real due date" when sourcing a large
-   * pre-loaded deck (see lib/deck-study.ts) rather than favorites. */
+   * pre-loaded deck (see lib/deck-study.ts) rather than saved words. */
   hasCard: (word: string) => boolean
   /** The resulting `due` date for each of the 4 ratings, for labeling
    * rating buttons with their outcome before the user picks one. */
   previewIntervals: (word: string) => Record<Grade, Date>
   /** Applies a rating via FSRS, persists and returns the updated card. */
   rate: (word: string, rating: Grade) => Card
-  /** Deletes a word's card — call when un-favoriting, so no orphaned
+  /** Deletes a word's card — call when un-saving, so no orphaned
    * scheduling state survives a word leaving the deck. */
   remove: (word: string) => void
   isLoading: boolean
 }
 
 /**
- * FSRS card store, one Card per favorited word, stored as the `srsCards`
+ * FSRS card store, one Card per saved word, stored as the `srsCards`
  * field on the signed-in user's users/{uid} Firestore doc (the same doc
- * lib/use-persisted-list.ts's favorites/history live on, via
+ * lib/use-persisted-list.ts's saved words/history live on, via
  * lib/use-user-doc.ts's shared subscription) — synced in real time across
  * every tab/device signed into the same account.
  */

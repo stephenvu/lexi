@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 type WordOfTheDayProps = {
-  favorites: string[]
+  saved: string[]
   onSelect: (word: string) => void
 }
 
@@ -18,13 +18,13 @@ function dayOfYear(date: Date): number {
 }
 
 /**
- * A featured word drawn from the user's own favorites — deterministic
+ * A featured word drawn from the user's own saved words — deterministic
  * rotation (day-of-year % length), entirely client-side. Click-to-view,
  * not auto-load: matches the rest of the app treating every lookup as an
  * explicit action rather than an automatic one.
  */
-export function WordOfTheDay({ favorites, onSelect }: WordOfTheDayProps) {
-  const word = favorites.length > 0 ? favorites[dayOfYear(new Date()) % favorites.length] : null
+export function WordOfTheDay({ saved, onSelect }: WordOfTheDayProps) {
+  const word = saved.length > 0 ? saved[dayOfYear(new Date()) % saved.length] : null
 
   return (
     <Card>
@@ -41,7 +41,7 @@ export function WordOfTheDay({ favorites, onSelect }: WordOfTheDayProps) {
           </button>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Favorite a word to see it featured here.
+            Save a word to see it featured here.
           </p>
         )}
       </CardContent>

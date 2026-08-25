@@ -48,15 +48,17 @@ export async function migrateLocalDataToCloud(): Promise<void> {
   const existing = await getDoc(userDocRef)
   if (existing.exists()) return // real cloud data already exists — never overwrite it
 
-  const favorites = readLocalArray(LOCAL_KEYS.favorites)
+  const saved = readLocalArray(LOCAL_KEYS.favorites)
   const history = readLocalArray(LOCAL_KEYS.history)
   const srsCards = readLocalSrsCards()
 
-  if (favorites.length === 0 && history.length === 0 && Object.keys(srsCards).length === 0) {
+  if (saved.length === 0 && history.length === 0 && Object.keys(srsCards).length === 0) {
     return // nothing local to migrate
   }
 
-  await setDoc(userDocRef, { favorites, history, srsCards })
+  // Firestore field is still named "favorites" — see the note on
+  // lib/use-persisted-list.ts's `field` param.
+  await setDoc(userDocRef, { favorites: saved, history, srsCards })
 
   window.localStorage.removeItem(LOCAL_KEYS.favorites)
   window.localStorage.removeItem(LOCAL_KEYS.history)

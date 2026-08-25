@@ -14,8 +14,8 @@ const MAX_ITEMS = 6
 
 /** A slim, single-line chip strip of recent lookups — horizontally
  * scrollable if it overflows, with the scrollbar itself hidden (reads
- * better on mobile), capped to the most recent 6. Favorited words show up
- * here too (every lookup is logged to history, favorited or not) with no
+ * better on mobile), capped to the most recent 6. Saved words show up
+ * here too (every lookup is logged to history, saved or not) with no
  * special styling — this strip doesn't distinguish them. Renders nothing
  * when history is empty. */
 export function RecentLookups({ history, onSelect, onRemove }: RecentLookupsProps) {

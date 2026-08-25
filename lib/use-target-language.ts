@@ -24,7 +24,7 @@ export type TargetLanguage = {
 /**
  * The signed-in user's preferred bilingual-translation target language,
  * stored as the `targetLanguage` field on the same users/{uid} Firestore
- * doc favorites/history/srsCards already live on (see
+ * doc saved words/history/srsCards already live on (see
  * lib/use-user-doc.ts) — same shared-subscription mechanism as
  * lib/use-persisted-list.ts, just a single string value instead of a list.
  */

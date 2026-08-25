@@ -65,7 +65,7 @@ export function WordDetail({ word }: { word: string }) {
   const { add: addToHistory } = usePersistedList("history", {
     cap: HISTORY_CAP,
   });
-  const favorites = usePersistedList("favorites");
+  const saved = usePersistedList("favorites");
   const srsCards = useSrsCards();
   const { targetLanguage, isLoading: languageLoading } = useTargetLanguage();
 
@@ -169,8 +169,8 @@ export function WordDetail({ word }: { word: string }) {
     });
   }
 
-  const isFavorite =
-    state.status === "success" && favorites.has(state.data.word);
+  const isSaved =
+    state.status === "success" && saved.has(state.data.word);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -204,25 +204,25 @@ export function WordDetail({ word }: { word: string }) {
             variant="glass"
             size="icon"
             className="shrink-0 rounded-full"
-            disabled={favorites.isLoading}
+            disabled={saved.isLoading}
             onClick={() => {
-              if (isFavorite) {
-                favorites.remove(state.data.word);
+              if (isSaved) {
+                saved.remove(state.data.word);
                 srsCards.remove(state.data.word);
               } else {
-                favorites.add(state.data.word);
+                saved.add(state.data.word);
               }
             }}
             aria-label={
-              isFavorite
-                ? `Remove ${state.data.word} from favorites`
-                : `Save ${state.data.word} to favorites`
+              isSaved
+                ? `Remove ${state.data.word} from Saved`
+                : `Save ${state.data.word}`
             }
           >
-            {favorites.isLoading ? (
+            {saved.isLoading ? (
               <Spinner />
             ) : (
-              <StarIcon fill={isFavorite ? "currentColor" : "none"} />
+              <StarIcon fill={isSaved ? "currentColor" : "none"} />
             )}
           </Button>
         )}

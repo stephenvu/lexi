@@ -14,10 +14,11 @@ export const NEW_WORDS_PER_SESSION = 20
  * large deck with nothing studied yet would try to introduce (and fetch
  * definitions for) its entire word list in one sitting — a word's memory
  * strength doesn't depend on which deck it came from, so "never studied"
- * is exactly as true for a 3,000-word deck as it is for a single new
- * favorite. Used both to build the actual study queue (Study) and to
+ * is exactly as true for a 3,000-word deck as it is for a single newly
+ * saved word. Used both to build the actual study queue (Study) and to
  * compute the "N to study" count shown before tapping in (Library), so
- * the two always agree.
+ * the two always agree. Not used for the saved-words "deck" itself — see
+ * countDueForStudy in app/library/page.tsx, which is deliberately uncapped.
  */
 export function selectWordsToStudy(
   words: string[],
