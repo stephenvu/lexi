@@ -33,6 +33,7 @@ import type { DefinitionResult } from "@/lib/gemini";
 import { usePersistedList } from "@/lib/use-persisted-list";
 import { useSrsCards } from "@/lib/use-srs-cards";
 import { useSpeech } from "@/lib/use-speech";
+import { useTargetLanguage } from "@/lib/use-target-language";
 import { capitalizeFirstLetter, cn } from "@/lib/utils";
 
 const HISTORY_CAP = 20;
@@ -66,6 +67,7 @@ export function WordDetail({ word }: { word: string }) {
   });
   const favorites = usePersistedList("favorites");
   const srsCards = useSrsCards();
+  const { targetLanguage, isLoading: languageLoading } = useTargetLanguage();
 
   // usePersistedList's `add` is now Firestore-backed and depends on the
   // signed-in uid (unavailable for a brief moment while useAuth() resolves
@@ -80,6 +82,15 @@ export function WordDetail({ word }: { word: string }) {
   }, [addToHistory]);
 
   useEffect(() => {
+    // Wait for the user's target-language preference to load before firing
+    // the lookup at all — otherwise this would fetch once with the
+    // pre-load default ("en"), then again the moment the real preference
+    // (e.g. "vi") arrives from Firestore, doubling the Gemini/Translate
+    // cost on every uncached word. The main lookup itself doesn't need to
+    // wait on auth for anything else (the session cookie authorizing the
+    // request is already attached), just this one preference.
+    if (languageLoading) return;
+
     // A boolean "cancelled" flag only gates the setState calls below — it
     // never aborts the underlying fetch. Under React Strict Mode's dev-only
     // double-invoke of effects, that let two real requests (and two real
@@ -92,7 +103,7 @@ export function WordDetail({ word }: { word: string }) {
     async function load() {
       try {
         const response = await fetch(
-          `/api/define?word=${encodeURIComponent(word)}`,
+          `/api/define?word=${encodeURIComponent(word)}&lang=${encodeURIComponent(targetLanguage)}`,
           {
             signal: controller.signal,
           },
@@ -133,7 +144,7 @@ export function WordDetail({ word }: { word: string }) {
     return () => {
       controller.abort();
     };
-  }, [word]);
+  }, [word, targetLanguage, languageLoading]);
 
   function goToWord(rawWord: string) {
     const trimmed = rawWord.trim();
@@ -305,7 +316,9 @@ export function WordDetail({ word }: { word: string }) {
                           {entry.usageNote}
                         </p>
                       )}
-                      {entry.translations.map((translation) => (
+                      {entry.translations
+                        .filter((translation) => translation.lang === targetLanguage)
+                        .map((translation) => (
                         <div
                           key={translation.lang}
                           className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4"

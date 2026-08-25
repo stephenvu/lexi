@@ -40,9 +40,10 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const word = searchParams.get("word") ?? ""
+  const lang = searchParams.get("lang") ?? undefined
 
   try {
-    const result = await getDefinition(word, uid)
+    const result = await getDefinition(word, uid, lang)
     return Response.json({ status: "ok", data: result })
   } catch (error) {
     if (error instanceof InvalidWordError) {

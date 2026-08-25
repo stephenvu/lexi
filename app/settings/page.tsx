@@ -3,12 +3,30 @@
 import { useRouter } from "next/navigation"
 import { ChevronLeftIcon } from "lucide-react"
 
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { SUPPORTED_LANGUAGES } from "@/lib/languages"
 import { signOutUser, useAuth } from "@/lib/use-auth"
+import { useTargetLanguage } from "@/lib/use-target-language"
+
+// Base UI's Select needs an explicit items array (unlike Radix's inline-JSX
+// SelectItem children) — see .agents/skills/shadcn/rules/base-vs-radix.md.
+const LANGUAGE_ITEMS = SUPPORTED_LANGUAGES.map(({ code, label }) => ({
+  value: code,
+  label,
+}))
 
 export default function SettingsPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { targetLanguage, setTargetLanguage } = useTargetLanguage()
 
   async function handleSignOut() {
     await signOutUser()
@@ -32,6 +50,33 @@ export default function SettingsPage() {
             <ChevronLeftIcon />
           </Button>
           <h1 className="text-[34px] leading-[41px] font-bold tracking-[-0.4px]">Settings</h1>
+        </div>
+
+        <div className="glass-surface flex items-center justify-between gap-3 rounded-[26px] p-4">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm font-semibold">Translate to</span>
+            <span className="truncate text-xs text-muted-foreground">
+              Shown alongside each definition. English means no translation.
+            </span>
+          </div>
+          <Select
+            items={LANGUAGE_ITEMS}
+            value={targetLanguage}
+            onValueChange={(value) => value && setTargetLanguage(value)}
+          >
+            <SelectTrigger className="shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {LANGUAGE_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         {user && (

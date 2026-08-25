@@ -20,11 +20,6 @@ env:
   # firebase apphosting:secrets:set GOOGLE_TRANSLATE_API_KEY
   - variable: GOOGLE_TRANSLATE_API_KEY
     secret: GOOGLE_TRANSLATE_API_KEY
-  - variable: TRANSLATE_TARGET_LANGUAGES
-    value: vi
-    availability:
-      - BUILD
-      - RUNTIME
   # Required for sign-in. Public-safe values (not secrets — they identify
   # the project, firestore.rules is the real access control), but the
   # REPLACE-ME placeholders below need swapping for the real values from

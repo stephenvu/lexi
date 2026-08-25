@@ -8,6 +8,7 @@ export type UserDoc = {
   favorites?: string[]
   history?: string[]
   srsCards?: Record<string, unknown>
+  targetLanguage?: string
 }
 
 type Listener = () => void
