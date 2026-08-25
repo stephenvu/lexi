@@ -18,7 +18,7 @@ export function Header() {
   if (pathname === "/login") return null
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex justify-end px-4 pt-3">
+    <header className="fixed inset-x-0 top-0 z-50 flex justify-end px-4 pt-16 sm:pt-24">
       <Button
         render={<Link href="/settings" />}
         nativeButton={false}
