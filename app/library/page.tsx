@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { ChevronRightIcon, LibraryIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +18,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { selectWordsToStudy } from "@/lib/deck-study"
 import type { DefinitionResult } from "@/lib/gemini"
-import { signOutUser, useAuth } from "@/lib/use-auth"
 import { useDecks } from "@/lib/use-decks"
 import { usePersistedList } from "@/lib/use-persisted-list"
 import { useSrsCards } from "@/lib/use-srs-cards"
@@ -32,8 +30,6 @@ type SavedState =
   | { status: "ready"; words: DefinitionResult[] }
 
 export default function LibraryPage() {
-  const router = useRouter()
-  const { user } = useAuth()
   const [segment, setSegment] = useState<Segment>("decks")
   const { decks, isLoading: decksLoading } = useDecks()
   const srsCards = useSrsCards()
@@ -43,13 +39,6 @@ export default function LibraryPage() {
   // words yet" flash before their real data arrives from Firestore.
   const isEmpty = !favorites.isLoading && favorites.items.length === 0
   const [savedState, setSavedState] = useState<SavedState>({ status: "loading" })
-
-  async function handleSignOut() {
-    await signOutUser()
-    await fetch("/api/session", { method: "DELETE" })
-    router.push("/login")
-    router.refresh()
-  }
 
   // Same read-through pattern as the Study deck: favorites are always
   // cached already (favoriting only happens after a successful lookup), so
@@ -221,36 +210,6 @@ export default function LibraryPage() {
                 <ChevronRightIcon className="size-[18px] shrink-0 text-muted-foreground/50" />
               </Link>
             ))}
-          </div>
-        )}
-
-        {user && (
-          <div className="glass-surface flex items-center justify-between gap-3 rounded-[26px] p-4">
-            <div className="flex min-w-0 items-center gap-3">
-              {user.photoURL && (
-                // A plain <img>, not next/image — this is the app's only
-                // external-domain image, and configuring remotePatterns
-                // for one small avatar isn't worth the extra config.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={user.photoURL}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  className="size-10 shrink-0 rounded-full"
-                />
-              )}
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-semibold">
-                  {user.displayName ?? "Signed in"}
-                </span>
-                {user.email && (
-                  <span className="truncate text-xs text-muted-foreground">{user.email}</span>
-                )}
-              </div>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={handleSignOut}>
-              Sign out
-            </Button>
           </div>
         )}
       </main>

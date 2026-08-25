@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Figtree, Outfit } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { Header } from "@/components/header";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { TabBar } from "@/components/tab-bar";
 
@@ -46,8 +47,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           to render on this Next.js version; see AGENTS.md. */}
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="theme-color" content="#008236" />
-      <body className="min-h-full flex flex-col pb-24">
+      <body className="min-h-full flex flex-col pt-16 pb-24">
         {children}
+        <Header />
         <TabBar />
         <ServiceWorkerRegister />
       </body>
