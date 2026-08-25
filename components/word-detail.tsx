@@ -243,7 +243,7 @@ export function WordDetail({ word }: { word: string }) {
         <div className="glass-surface flex flex-col gap-4 rounded-[26px] p-6">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2.5">
-              <span className="font-heading text-[36px] leading-tight font-semibold tracking-tight">
+              <span className="font-serif text-[40px] leading-tight font-semibold tracking-tight">
                 {capitalizeFirstLetter(state.data.word)}
               </span>
               {state.data.cefrLevel && (
@@ -327,7 +327,7 @@ export function WordDetail({ word }: { word: string }) {
                             {languageDisplayNames.of(translation.lang) ??
                               translation.lang}
                           </span>
-                          <p className="text-sm">
+                          <p className="font-noto text-base">
                             {translation.word && (
                               <span className="font-semibold">
                                 {capitalizeFirstLetter(translation.word)}
@@ -342,7 +342,7 @@ export function WordDetail({ word }: { word: string }) {
                         <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                           Example
                         </span>
-                        <p className="text-sm italic">
+                        <p className="text-base italic">
                           &ldquo;{entry.example}&rdquo;
                         </p>
                       </div>

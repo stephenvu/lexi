@@ -10,6 +10,13 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-heading);
+  /* Overrides Tailwind's own default --font-serif fallback stack, so the
+     built-in `font-serif` utility renders the loaded Noto Serif face
+     (headwords) instead of a generic system serif. */
+  --font-serif: var(--font-serif);
+  /* Translated word/meaning text — see the `font-noto` usages in
+     components/word-detail.tsx and components/study-flashcards.tsx. */
+  --font-noto: var(--font-noto);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

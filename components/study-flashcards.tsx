@@ -26,6 +26,7 @@ import { SAVED_DECK_ID, useLastStudyDeck } from "@/lib/use-last-study-deck"
 import { usePersistedList } from "@/lib/use-persisted-list"
 import { useSrsCards, type SrsCards } from "@/lib/use-srs-cards"
 import { useSpeech } from "@/lib/use-speech"
+import { useTargetLanguage } from "@/lib/use-target-language"
 import { capitalizeFirstLetter } from "@/lib/utils"
 
 // Renders a translation's ISO 639-1 "lang" code (e.g. "vi") as a display
@@ -114,6 +115,7 @@ export function StudyFlashcards() {
   const { decks, isLoading: decksLoading } = useDecks()
   const srsCards = useSrsCards()
   const { lastStudyDeck, setLastStudyDeck, isLoading: lastDeckLoading } = useLastStudyDeck()
+  const { targetLanguage, isLoading: languageLoading } = useTargetLanguage()
 
   // No explicit ?deck= — resume whatever was last studied (defaulting to
   // saved words if nothing's ever been chosen). `null` while that
@@ -192,6 +194,11 @@ export function StudyFlashcards() {
     // loading -> loaded transition, so the queue gets computed against
     // real schedules rather than every word looking freshly due/new.
     if (sourceLoading || srsCards.isLoading) return
+    // Same double-fetch guard as components/word-detail.tsx: this fetches
+    // a whole queue of words at once, so re-fetching once the real
+    // preference arrives (after briefly assuming "en") would be even more
+    // wasteful here than for a single word.
+    if (languageLoading) return
 
     // A real AbortController (not just a boolean flag) so React Strict
     // Mode's dev-only double-invoke of effects genuinely cancels the first
@@ -215,9 +222,10 @@ export function StudyFlashcards() {
       const results = await Promise.all(
         wordsToFetch.map(async (word) => {
           try {
-            const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
-              signal: controller.signal,
-            })
+            const response = await fetch(
+              `/api/define?word=${encodeURIComponent(word)}&lang=${encodeURIComponent(targetLanguage)}`,
+              { signal: controller.signal }
+            )
             const body = await response.json()
             return body.status === "ok" ? (body.data as DefinitionResult) : null
           } catch {
@@ -254,7 +262,17 @@ export function StudyFlashcards() {
     return () => {
       controller.abort()
     }
-  }, [sourceWords, isEmpty, deckNotFound, sourceLoading, srsCards.isLoading, deckId, isSavedDeck])
+  }, [
+    sourceWords,
+    isEmpty,
+    deckNotFound,
+    sourceLoading,
+    srsCards.isLoading,
+    deckId,
+    isSavedDeck,
+    targetLanguage,
+    languageLoading,
+  ])
 
   function rate(word: string, rating: Grade) {
     srsCards.rate(word, rating)
@@ -342,64 +360,70 @@ export function StudyFlashcards() {
 
               {flipped ? (
                 <>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-heading text-[30px] leading-tight font-bold">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-serif text-[34px] leading-tight font-bold">
                         {capitalizeFirstLetter(card.word)}
                       </span>
-                      {card.ipa && (
-                        <span className="font-mono text-sm text-muted-foreground">{card.ipa}</span>
-                      )}
-                      {card.syllables && (
-                        <span className="text-sm text-muted-foreground">{card.syllables}</span>
-                      )}
+                      <Button
+                        type="button"
+                        variant="glass"
+                        size="icon"
+                        className="size-11 shrink-0"
+                        onClick={() => speak(card.word)}
+                        aria-label={`Play pronunciation of ${card.word}`}
+                      >
+                        {isSpeaking ? <Spinner /> : <Volume2Icon />}
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="glass"
-                      size="icon"
-                      className="size-11 shrink-0"
-                      onClick={() => speak(card.word)}
-                      aria-label={`Play pronunciation of ${card.word}`}
-                    >
-                      {isSpeaking ? <Spinner /> : <Volume2Icon />}
-                    </Button>
+                    {(card.ipa || card.syllables) && (
+                      <div className="flex flex-col gap-0.5">
+                        {card.ipa && (
+                          <span className="font-mono text-sm text-muted-foreground">{card.ipa}</span>
+                        )}
+                        {card.syllables && (
+                          <span className="text-sm text-muted-foreground">{card.syllables}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-4 border-t border-[rgba(60,60,67,0.16)] pt-4">
-                    <p>{card.entries[0].definition}</p>
+                    <p className="text-base">{card.entries[0].definition}</p>
 
-                    {card.entries[0].translations.map((translation) => (
-                      <div
-                        key={translation.lang}
-                        className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4"
-                      >
-                        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                          {languageDisplayNames.of(translation.lang) ?? translation.lang}
-                        </span>
-                        <p className="text-sm">
-                          {translation.word && (
-                            <span className="font-semibold">
-                              {capitalizeFirstLetter(translation.word)}
-                              {" — "}
-                            </span>
-                          )}
-                          {translation.meaning}
-                        </p>
-                      </div>
-                    ))}
+                    {card.entries[0].translations
+                      .filter((translation) => translation.lang === targetLanguage)
+                      .map((translation) => (
+                        <div
+                          key={translation.lang}
+                          className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4"
+                        >
+                          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            {languageDisplayNames.of(translation.lang) ?? translation.lang}
+                          </span>
+                          <p className="font-noto text-base">
+                            {translation.word && (
+                              <span className="font-semibold">
+                                {capitalizeFirstLetter(translation.word)}
+                                {" — "}
+                              </span>
+                            )}
+                            {translation.meaning}
+                          </p>
+                        </div>
+                      ))}
 
                     <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
                       <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                         Example
                       </span>
-                      <p className="text-sm italic">&ldquo;{card.entries[0].example}&rdquo;</p>
+                      <p className="text-base italic">&ldquo;{card.entries[0].example}&rdquo;</p>
                     </div>
                   </div>
                 </>
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-4 py-6 text-center">
-                  <span className="font-heading text-[44px] leading-tight font-bold">
+                  <span className="font-serif text-[44px] leading-tight font-bold">
                     {capitalizeFirstLetter(card.word)}
                   </span>
                   {card.ipa && (
