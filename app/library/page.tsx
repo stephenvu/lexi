@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ChevronRightIcon, LibraryIcon } from "lucide-react"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronRightIcon, LibraryIcon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Empty,
   EmptyContent,
@@ -14,21 +14,21 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
-import { Skeleton } from "@/components/ui/skeleton"
-import { selectWordsToStudy } from "@/lib/deck-study"
-import type { DefinitionResult } from "@/lib/gemini"
-import { SAVED_DECK_ID } from "@/lib/use-last-study-deck"
-import { useDecks } from "@/lib/use-decks"
-import { usePersistedList } from "@/lib/use-persisted-list"
-import { useSrsCards, type SrsCards } from "@/lib/use-srs-cards"
-import { capitalizeFirstLetter, cn } from "@/lib/utils"
+} from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import { selectWordsToStudy } from "@/lib/deck-study";
+import type { DefinitionResult } from "@/lib/gemini";
+import { SAVED_DECK_ID } from "@/lib/use-last-study-deck";
+import { useDecks } from "@/lib/use-decks";
+import { usePersistedList } from "@/lib/use-persisted-list";
+import { useSrsCards, type SrsCards } from "@/lib/use-srs-cards";
+import { capitalizeFirstLetter, cn } from "@/lib/utils";
 
-type Segment = "decks" | "saved"
+type Segment = "decks" | "saved";
 
 type SavedState =
   | { status: "loading" }
-  | { status: "ready"; words: DefinitionResult[] }
+  | { status: "ready"; words: DefinitionResult[] };
 
 // How many of `words` are actually worth studying right now, uncapped —
 // matches components/study-flashcards.tsx's saved-words behavior exactly
@@ -37,67 +37,81 @@ type SavedState =
 // not lib/deck-study.ts's selectWordsToStudy, which caps new words for
 // large pre-loaded decks — a cap saved words has never had and shouldn't
 // gain just because it's now shown alongside real decks.
-function countDueForStudy(words: string[], srsCards: Pick<SrsCards, "getCard">): number {
-  const now = new Date()
-  return words.filter((word) => srsCards.getCard(word).due <= now).length
+function countDueForStudy(
+  words: string[],
+  srsCards: Pick<SrsCards, "getCard">,
+): number {
+  const now = new Date();
+  return words.filter((word) => srsCards.getCard(word).due <= now).length;
 }
 
 export default function LibraryPage() {
-  const [segment, setSegment] = useState<Segment>("decks")
-  const { decks, isLoading: decksLoading } = useDecks()
-  const srsCards = useSrsCards()
-  const saved = usePersistedList("favorites")
+  const [segment, setSegment] = useState<Segment>("decks");
+  const { decks, isLoading: decksLoading } = useDecks();
+  const srsCards = useSrsCards();
+  const saved = usePersistedList("favorites");
   // False while saved words are still loading, not just when the list is
   // genuinely empty — otherwise a user who does have saved words sees a
   // "No saved words yet" flash before their real data arrives from
   // Firestore.
-  const isEmpty = !saved.isLoading && saved.items.length === 0
-  const [savedState, setSavedState] = useState<SavedState>({ status: "loading" })
+  const isEmpty = !saved.isLoading && saved.items.length === 0;
+  const [savedState, setSavedState] = useState<SavedState>({
+    status: "loading",
+  });
 
   // Same read-through pattern as the Study deck: saved words are always
   // cached already (saving only happens after a successful lookup), so
   // this is just re-fetching already-known data, not billing anything new.
   useEffect(() => {
-    if (isEmpty || saved.isLoading) return
+    if (isEmpty || saved.isLoading) return;
 
     // A real AbortController (not just a boolean flag) so React Strict
     // Mode's dev-only double-invoke of effects genuinely cancels the first
     // invocation's in-flight requests instead of just ignoring their
     // result — see the identical fix/comment in components/word-detail.tsx.
-    const controller = new AbortController()
+    const controller = new AbortController();
 
     async function loadSaved() {
       const results = await Promise.all(
         saved.items.map(async (word) => {
           try {
-            const response = await fetch(`/api/define?word=${encodeURIComponent(word)}`, {
-              signal: controller.signal,
-            })
-            const body = await response.json()
-            return body.status === "ok" ? (body.data as DefinitionResult) : null
+            const response = await fetch(
+              `/api/define?word=${encodeURIComponent(word)}`,
+              {
+                signal: controller.signal,
+              },
+            );
+            const body = await response.json();
+            return body.status === "ok"
+              ? (body.data as DefinitionResult)
+              : null;
           } catch {
-            return null
+            return null;
           }
-        })
-      )
+        }),
+      );
 
-      if (controller.signal.aborted) return
+      if (controller.signal.aborted) return;
 
-      const valid = results.filter((result): result is DefinitionResult => result?.found === true)
-      setSavedState({ status: "ready", words: valid })
+      const valid = results.filter(
+        (result): result is DefinitionResult => result?.found === true,
+      );
+      setSavedState({ status: "ready", words: valid });
     }
 
-    loadSaved()
+    loadSaved();
 
     return () => {
-      controller.abort()
-    }
-  }, [saved.items, isEmpty, saved.isLoading])
+      controller.abort();
+    };
+  }, [saved.items, isEmpty, saved.isLoading]);
 
   return (
-    <div className="flex flex-1 items-start justify-center px-4 py-16 sm:py-24">
+    <div className="flex flex-1 items-start justify-center px-4 pt-6 pb-16 sm:pb-24">
       <main className="flex w-full max-w-xl flex-col gap-6">
-        <h1 className="text-[34px] leading-[41px] font-bold tracking-[-0.4px]">Library</h1>
+        <h1 className="text-[34px] leading-[41px] font-bold tracking-[-0.4px]">
+          Library
+        </h1>
 
         <div className="grid grid-cols-2 gap-1 rounded-[21px] border-[0.5px] border-white/70 bg-[color-mix(in_oklch,white_44%,transparent)] p-[3px] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_6px_18px_rgba(12,32,24,0.06)] backdrop-blur-2xl backdrop-saturate-[1.8]">
           {(
@@ -114,7 +128,7 @@ export default function LibraryPage() {
                 "flex min-h-[38px] items-center justify-center rounded-2xl text-[15px] tracking-tight",
                 segment === key
                   ? "bg-[color-mix(in_oklch,white_92%,transparent)] font-semibold text-foreground shadow-[0_2px_6px_rgba(12,32,24,0.1),inset_0_1px_0_rgba(255,255,255,0.9)]"
-                  : "font-medium text-muted-foreground"
+                  : "font-medium text-muted-foreground",
               )}
             >
               {label}
@@ -122,56 +136,63 @@ export default function LibraryPage() {
           ))}
         </div>
 
-        {segment === "decks" && (decksLoading || srsCards.isLoading || saved.isLoading) && (
-          <Card>
-            <CardContent className="flex flex-col gap-3.5">
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-full" />
-            </CardContent>
-          </Card>
-        )}
+        {segment === "decks" &&
+          (decksLoading || srsCards.isLoading || saved.isLoading) && (
+            <Card>
+              <CardContent className="flex flex-col gap-3.5">
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+              </CardContent>
+            </Card>
+          )}
 
-        {segment === "decks" && !decksLoading && !srsCards.isLoading && !saved.isLoading && (
-          <div className="glass-surface flex flex-col overflow-hidden rounded-[26px]">
-            {/* Saved words always leads the list — it's the user's own deck,
+        {segment === "decks" &&
+          !decksLoading &&
+          !srsCards.isLoading &&
+          !saved.isLoading && (
+            <div className="glass-surface flex flex-col overflow-hidden rounded-[26px]">
+              {/* Saved words always leads the list — it's the user's own deck,
                 not a pre-loaded one, so it's never subject to "no decks
                 configured yet" the way the rest of this list theoretically
                 could be. */}
-            {[
-              { id: SAVED_DECK_ID, name: "Saved words", words: saved.items },
-              ...decks,
-            ].map((deck, index, all) => {
-              // Saved words has never had (and shouldn't gain here) the
-              // capped-new-words behavior real decks need at Oxford-3000
-              // scale — see countDueForStudy above.
-              const toStudyCount =
-                deck.id === SAVED_DECK_ID
-                  ? countDueForStudy(deck.words, srsCards)
-                  : selectWordsToStudy(deck.words, srsCards).length
-              return (
-                <Link
-                  key={deck.id}
-                  href={`/study?deck=${encodeURIComponent(deck.id)}`}
-                  className={cn(
-                    "flex min-h-[64px] items-center gap-3 px-[18px] py-3.5",
-                    index < all.length - 1 && "border-b border-[rgba(60,60,67,0.14)]"
-                  )}
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="font-heading text-lg font-semibold tracking-tight">
-                      {deck.name}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {deck.words.length} cards ·{" "}
-                      {toStudyCount > 0 ? `${toStudyCount} to study` : "All caught up"}
-                    </span>
-                  </div>
-                  <ChevronRightIcon className="size-[18px] shrink-0 text-muted-foreground/50" />
-                </Link>
-              )
-            })}
-          </div>
-        )}
+              {[
+                { id: SAVED_DECK_ID, name: "Saved words", words: saved.items },
+                ...decks,
+              ].map((deck, index, all) => {
+                // Saved words has never had (and shouldn't gain here) the
+                // capped-new-words behavior real decks need at Oxford-3000
+                // scale — see countDueForStudy above.
+                const toStudyCount =
+                  deck.id === SAVED_DECK_ID
+                    ? countDueForStudy(deck.words, srsCards)
+                    : selectWordsToStudy(deck.words, srsCards).length;
+                return (
+                  <Link
+                    key={deck.id}
+                    href={`/study?deck=${encodeURIComponent(deck.id)}`}
+                    className={cn(
+                      "flex min-h-[64px] items-center gap-3 px-[18px] py-3.5",
+                      index < all.length - 1 &&
+                        "border-b border-[rgba(60,60,67,0.14)]",
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="font-heading text-lg font-semibold tracking-tight">
+                        {deck.name}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {deck.words.length} cards ·{" "}
+                        {toStudyCount > 0
+                          ? `${toStudyCount} to study`
+                          : "All caught up"}
+                      </span>
+                    </div>
+                    <ChevronRightIcon className="size-[18px] shrink-0 text-muted-foreground/50" />
+                  </Link>
+                );
+              })}
+            </div>
+          )}
 
         {segment === "saved" && isEmpty && (
           <Empty>
@@ -185,7 +206,9 @@ export default function LibraryPage() {
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button render={<Link href="/" />} nativeButton={false}>Go look something up</Button>
+              <Button render={<Link href="/" />} nativeButton={false}>
+                Go look something up
+              </Button>
             </EmptyContent>
           </Empty>
         )}
@@ -208,7 +231,8 @@ export default function LibraryPage() {
                 href={`/word/${encodeURIComponent(entry.word)}`}
                 className={cn(
                   "flex min-h-[60px] items-center gap-3 px-[18px] py-3.5",
-                  index < savedState.words.length - 1 && "border-b border-[rgba(60,60,67,0.14)]"
+                  index < savedState.words.length - 1 &&
+                    "border-b border-[rgba(60,60,67,0.14)]",
                 )}
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -219,7 +243,9 @@ export default function LibraryPage() {
                     {entry.entries[0]?.partOfSpeech}
                   </span>
                 </div>
-                {entry.cefrLevel && <Badge variant="secondary">{entry.cefrLevel}</Badge>}
+                {entry.cefrLevel && (
+                  <Badge variant="secondary">{entry.cefrLevel}</Badge>
+                )}
                 <ChevronRightIcon className="size-[18px] shrink-0 text-muted-foreground/50" />
               </Link>
             ))}
@@ -227,5 +253,5 @@ export default function LibraryPage() {
         )}
       </main>
     </div>
-  )
+  );
 }
