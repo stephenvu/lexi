@@ -16,12 +16,12 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { selectWordsToStudy } from "@/lib/deck-study";
+import { formatDeckStats, getDeckStudyStats } from "@/lib/deck-study";
 import type { DefinitionResult } from "@/lib/gemini";
 import { SAVED_DECK_ID } from "@/lib/use-last-study-deck";
 import { useDecks } from "@/lib/use-decks";
 import { usePersistedList } from "@/lib/use-persisted-list";
-import { useSrsCards, type SrsCards } from "@/lib/use-srs-cards";
+import { useSrsCards } from "@/lib/use-srs-cards";
 import { capitalizeFirstLetter, cn } from "@/lib/utils";
 
 type Segment = "decks" | "saved";
@@ -29,21 +29,6 @@ type Segment = "decks" | "saved";
 type SavedState =
   | { status: "loading" }
   | { status: "ready"; words: DefinitionResult[] };
-
-// How many of `words` are actually worth studying right now, uncapped —
-// matches components/study-flashcards.tsx's saved-words behavior exactly
-// (fetch everything, filter to due; never-studied words default to due
-// immediately, same as a freshly-saved word always has been). Deliberately
-// not lib/deck-study.ts's selectWordsToStudy, which caps new words for
-// large pre-loaded decks — a cap saved words has never had and shouldn't
-// gain just because it's now shown alongside real decks.
-function countDueForStudy(
-  words: string[],
-  srsCards: Pick<SrsCards, "getCard">,
-): number {
-  const now = new Date();
-  return words.filter((word) => srsCards.getCard(word).due <= now).length;
-}
 
 export default function LibraryPage() {
   const [segment, setSegment] = useState<Segment>("decks");
@@ -159,13 +144,7 @@ export default function LibraryPage() {
                 { id: SAVED_DECK_ID, name: "Saved words", words: saved.items },
                 ...decks,
               ].map((deck, index, all) => {
-                // Saved words has never had (and shouldn't gain here) the
-                // capped-new-words behavior real decks need at Oxford-3000
-                // scale — see countDueForStudy above.
-                const toStudyCount =
-                  deck.id === SAVED_DECK_ID
-                    ? countDueForStudy(deck.words, srsCards)
-                    : selectWordsToStudy(deck.words, srsCards).length;
+                const stats = getDeckStudyStats(deck.words, srsCards);
                 return (
                   <Link
                     key={deck.id}
@@ -181,10 +160,7 @@ export default function LibraryPage() {
                         {deck.name}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {deck.words.length} cards ·{" "}
-                        {toStudyCount > 0
-                          ? `${toStudyCount} to study`
-                          : "All caught up"}
+                        {deck.words.length} cards · {formatDeckStats(stats)}
                       </span>
                     </div>
                     <ChevronRightIcon className="size-[18px] shrink-0 text-muted-foreground/50" />

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GraduationCapIcon, TurtleIcon, Volume2Icon } from "lucide-react";
-import { Rating, type Grade } from "ts-fsrs";
+import { Rating, State, type Grade } from "ts-fsrs";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,16 +19,21 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { selectWordsToStudy } from "@/lib/deck-study";
+import {
+  formatDeckStats,
+  getDeckStudyStats,
+  selectWordsToStudy,
+} from "@/lib/deck-study";
 import type { DefinitionResult } from "@/lib/gemini";
 import { useDecks } from "@/lib/use-decks";
 import { SAVED_DECK_ID, useLastStudyDeck } from "@/lib/use-last-study-deck";
 import { usePersistedList } from "@/lib/use-persisted-list";
+import { useRatingButtonCount } from "@/lib/use-rating-button-count";
 import { useSrsCards, type SrsCards } from "@/lib/use-srs-cards";
 import { useSpeech } from "@/lib/use-speech";
 import { useTargetLanguage } from "@/lib/use-target-language";
 import { useTtsSettings } from "@/lib/use-tts-settings";
-import { capitalizeFirstLetter } from "@/lib/utils";
+import { capitalizeFirstLetter, shuffle } from "@/lib/utils";
 
 // Renders a translation's ISO 639-1 "lang" code (e.g. "vi") as a display
 // name (e.g. "Vietnamese") — no hardcoded name-lookup table needed.
@@ -45,6 +50,13 @@ const RATING_BUTTONS = [
 ] as const;
 
 const EMPTY_WORDS: string[] = [];
+
+const CARD_STATE_LABEL: Record<State, string> = {
+  [State.New]: "New",
+  [State.Learning]: "Learning",
+  [State.Review]: "Review",
+  [State.Relearning]: "Relearn",
+};
 
 // Playback rate for the flashcard Speaker button's "slow" toggle — fixed,
 // not a Settings value (unlike repeat count/pause duration below).
@@ -67,15 +79,6 @@ function cancellableSleep(ms: number) {
       resolveEarly();
     },
   };
-}
-
-function shuffle<T>(items: T[]): T[] {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
 }
 
 // The coarsest unit that still reads as a whole number ("3d" not "0.1mo") —
@@ -200,6 +203,7 @@ export function StudyFlashcards() {
   const [flipped, setFlipped] = useState(false);
   const { isSpeaking, speak, stop } = useSpeech();
   const { repeatCount, pauseSeconds } = useTtsSettings();
+  const { ratingButtonCount } = useRatingButtonCount();
 
   // Repeat-playback toggle state for the Speaker button, plus the speed
   // toggle next to it. Shared across both card faces (only one is visible
@@ -401,6 +405,17 @@ export function StudyFlashcards() {
   // until then rather than flashing "Studying" with nothing after it.
   const deckLabel = isSavedDeck ? "Saved words" : (deck?.name ?? null);
 
+  const cardState = card ? srsCards.getCard(card.word).state : null;
+  const deckStats = getDeckStudyStats(sourceWords, srsCards);
+  const statsReady =
+    deckLabel !== null && !isEmpty && !sourceLoading && !srsCards.isLoading;
+  const visibleRatingButtons =
+    ratingButtonCount === 2
+      ? RATING_BUTTONS.filter(
+          (b) => b.rating === Rating.Again || b.rating === Rating.Good,
+        )
+      : RATING_BUTTONS;
+
   return (
     <div className="flex w-full flex-col gap-6">
       <div className="flex flex-col gap-0.5">
@@ -409,6 +424,11 @@ export function StudyFlashcards() {
         </h1>
         {deckLabel && (
           <p className="text-sm text-muted-foreground">Studying {deckLabel}</p>
+        )}
+        {statsReady && (
+          <p className="text-xs text-muted-foreground">
+            {formatDeckStats(deckStats)}
+          </p>
         )}
       </div>
 
@@ -463,9 +483,14 @@ export function StudyFlashcards() {
                 <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                   {card.entries[0].partOfSpeech}
                 </span>
-                {card.cefrLevel && (
-                  <Badge variant="secondary">{card.cefrLevel}</Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {cardState !== null && (
+                    <Badge variant="outline">{CARD_STATE_LABEL[cardState]}</Badge>
+                  )}
+                  {card.cefrLevel && (
+                    <Badge variant="secondary">{card.cefrLevel}</Badge>
+                  )}
+                </div>
               </div>
 
               {flipped ? (
@@ -627,8 +652,14 @@ export function StudyFlashcards() {
           </Card>
 
           {flipped && (
-            <div className="grid grid-cols-4 gap-2">
-              {RATING_BUTTONS.map(({ rating, label }) => (
+            <div
+              className={
+                ratingButtonCount === 2
+                  ? "grid grid-cols-2 gap-2"
+                  : "grid grid-cols-4 gap-2"
+              }
+            >
+              {visibleRatingButtons.map(({ rating, label }) => (
                 <Button
                   key={rating}
                   type="button"

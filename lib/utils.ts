@@ -22,3 +22,16 @@ export function getOxfordAudioUrl(word: string) {
 
   return `https://www.oxfordlearnersdictionaries.com/media/english/uk_pron/${firstLetter}/${firstThreeLetters}/${firstFiveLetters}/${fileName}`
 }
+
+// Fisher–Yates. Used to randomize the flashcard review queue's display
+// order (components/study-flashcards.tsx) and which never-studied words
+// get selected each session when there are more than fit
+// (lib/deck-study.ts's selectWordsToStudy).
+export function shuffle<T>(items: T[]): T[] {
+  const copy = [...items]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}

@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SUPPORTED_LANGUAGES } from "@/lib/languages";
 import { signOutUser, useAuth } from "@/lib/use-auth";
+import { useRatingButtonCount } from "@/lib/use-rating-button-count";
 import { useTargetLanguage } from "@/lib/use-target-language";
 import { useTtsSettings } from "@/lib/use-tts-settings";
 
@@ -34,12 +35,18 @@ const PAUSE_SECONDS_ITEMS = [1, 2, 3, 4, 5].map((seconds) => ({
   label: `${seconds}s`,
 }));
 
+const RATING_BUTTON_COUNT_ITEMS = [
+  { value: "2", label: "2 (Again / Good)" },
+  { value: "4", label: "4 (Again / Hard / Good / Easy)" },
+];
+
 export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { targetLanguage, setTargetLanguage } = useTargetLanguage();
   const { repeatCount, pauseSeconds, setRepeatCount, setPauseSeconds } =
     useTtsSettings();
+  const { ratingButtonCount, setRatingButtonCount } = useRatingButtonCount();
 
   async function handleSignOut() {
     await signOutUser();
@@ -152,6 +159,35 @@ export default function SettingsPage() {
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="glass-surface flex items-center justify-between gap-3 rounded-[26px] p-4">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm font-semibold">Rating buttons</span>
+            <span className="truncate text-xs text-muted-foreground">
+              How many options you get when rating a flashcard.
+            </span>
+          </div>
+          <Select
+            items={RATING_BUTTON_COUNT_ITEMS}
+            value={String(ratingButtonCount)}
+            onValueChange={(value) =>
+              value && setRatingButtonCount(Number(value) === 4 ? 4 : 2)
+            }
+          >
+            <SelectTrigger className="shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {RATING_BUTTON_COUNT_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         {user && (

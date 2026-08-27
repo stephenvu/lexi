@@ -12,6 +12,7 @@ export type UserDoc = {
   lastStudyDeck?: string
   ttsRepeatCount?: number
   ttsPauseSeconds?: number
+  ratingButtonCount?: number
 }
 
 type Listener = () => void
