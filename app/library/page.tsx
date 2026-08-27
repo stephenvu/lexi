@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDeckStats, getDeckStudyStats } from "@/lib/deck-study";
+import { fetchCachedDefinition } from "@/lib/definitions-idb-cache";
 import type { DefinitionResult } from "@/lib/gemini";
+import { DEFAULT_TARGET_LANGUAGE } from "@/lib/languages";
 import { SAVED_DECK_ID } from "@/lib/use-last-study-deck";
 import { useDecks } from "@/lib/use-decks";
 import { usePersistedList } from "@/lib/use-persisted-list";
@@ -60,16 +62,12 @@ export default function LibraryPage() {
       const results = await Promise.all(
         saved.items.map(async (word) => {
           try {
-            const response = await fetch(
-              `/api/define?word=${encodeURIComponent(word)}`,
-              {
-                signal: controller.signal,
-              },
+            const body = await fetchCachedDefinition(
+              word,
+              DEFAULT_TARGET_LANGUAGE,
+              { signal: controller.signal },
             );
-            const body = await response.json();
-            return body.status === "ok"
-              ? (body.data as DefinitionResult)
-              : null;
+            return body.status === "ok" ? body.data : null;
           } catch {
             return null;
           }

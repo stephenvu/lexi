@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { fetchCachedDefinition } from "@/lib/definitions-idb-cache";
 import type { DefinitionResult } from "@/lib/gemini";
 import { usePersistedList } from "@/lib/use-persisted-list";
 import { useSrsCards } from "@/lib/use-srs-cards";
@@ -102,13 +103,9 @@ export function WordDetail({ word }: { word: string }) {
 
     async function load() {
       try {
-        const response = await fetch(
-          `/api/define?word=${encodeURIComponent(word)}&lang=${encodeURIComponent(targetLanguage)}`,
-          {
-            signal: controller.signal,
-          },
-        );
-        const body = await response.json();
+        const body = await fetchCachedDefinition(word, targetLanguage, {
+          signal: controller.signal,
+        });
 
         if (body.status !== "ok") {
           setState({
@@ -118,7 +115,7 @@ export function WordDetail({ word }: { word: string }) {
           return;
         }
 
-        const data = body.data as DefinitionResult;
+        const data = body.data;
         if (!data.found) {
           setState({
             status: "not-found",

@@ -25,6 +25,7 @@ import {
   getDeckStudyStats,
   selectWordsToStudy,
 } from "@/lib/deck-study";
+import { fetchCachedDefinition } from "@/lib/definitions-idb-cache";
 import type { DefinitionResult } from "@/lib/gemini";
 import { useDecks } from "@/lib/use-decks";
 import { SAVED_DECK_ID, useLastStudyDeck } from "@/lib/use-last-study-deck";
@@ -313,14 +314,10 @@ export function StudyFlashcards() {
       const results = await Promise.all(
         wordsToFetch.map(async (word) => {
           try {
-            const response = await fetch(
-              `/api/define?word=${encodeURIComponent(word)}&lang=${encodeURIComponent(targetLanguage)}`,
-              { signal: controller.signal },
-            );
-            const body = await response.json();
-            return body.status === "ok"
-              ? (body.data as DefinitionResult)
-              : null;
+            const body = await fetchCachedDefinition(word, targetLanguage, {
+              signal: controller.signal,
+            });
+            return body.status === "ok" ? body.data : null;
           } catch {
             return null;
           }
