@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SUPPORTED_LANGUAGES } from "@/lib/languages";
 import { signOutUser, useAuth } from "@/lib/use-auth";
+import { useNewWordsPerSession } from "@/lib/use-new-words-per-session";
 import { useRatingButtonCount } from "@/lib/use-rating-button-count";
 import { useTargetLanguage } from "@/lib/use-target-language";
 import { useTtsSettings } from "@/lib/use-tts-settings";
@@ -40,6 +41,13 @@ const RATING_BUTTON_COUNT_ITEMS = [
   { value: "4", label: "4 (Again / Hard / Good / Easy)" },
 ];
 
+const NEW_WORDS_PER_SESSION_ITEMS = [1, 3, 5, 10, 15, 20, 25, 30].map(
+  (count) => ({
+    value: String(count),
+    label: String(count),
+  }),
+);
+
 export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -47,6 +55,8 @@ export default function SettingsPage() {
   const { repeatCount, pauseSeconds, setRepeatCount, setPauseSeconds } =
     useTtsSettings();
   const { ratingButtonCount, setRatingButtonCount } = useRatingButtonCount();
+  const { newWordsPerSession, setNewWordsPerSession } =
+    useNewWordsPerSession();
 
   async function handleSignOut() {
     await signOutUser();
@@ -181,6 +191,35 @@ export default function SettingsPage() {
             <SelectContent>
               <SelectGroup>
                 {RATING_BUTTON_COUNT_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="glass-surface flex items-center justify-between gap-3 rounded-[26px] p-4">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm font-semibold">New words per session</span>
+            <span className="truncate text-xs text-muted-foreground">
+              How many new words Study introduces each time you study a deck.
+            </span>
+          </div>
+          <Select
+            items={NEW_WORDS_PER_SESSION_ITEMS}
+            value={String(newWordsPerSession)}
+            onValueChange={(value) =>
+              value && setNewWordsPerSession(Number(value))
+            }
+          >
+            <SelectTrigger className="shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {NEW_WORDS_PER_SESSION_ITEMS.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
                     {item.label}
                   </SelectItem>

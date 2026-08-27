@@ -29,6 +29,7 @@ import { fetchCachedDefinition } from "@/lib/definitions-idb-cache";
 import type { DefinitionResult } from "@/lib/gemini";
 import { useDecks } from "@/lib/use-decks";
 import { SAVED_DECK_ID, useLastStudyDeck } from "@/lib/use-last-study-deck";
+import { useNewWordsPerSession } from "@/lib/use-new-words-per-session";
 import { usePersistedList } from "@/lib/use-persisted-list";
 import { useRatingButtonCount } from "@/lib/use-rating-button-count";
 import { useSrsCards, type SrsCards } from "@/lib/use-srs-cards";
@@ -207,6 +208,7 @@ export function StudyFlashcards() {
   const { isSpeaking, speak, stop } = useSpeech();
   const { repeatCount, pauseSeconds } = useTtsSettings();
   const { ratingButtonCount } = useRatingButtonCount();
+  const { newWordsPerSession } = useNewWordsPerSession();
 
   // Repeat-playback toggle state for the Speaker button, plus the speed
   // toggle next to it. Shared across both card faces (only one is visible
@@ -307,10 +309,14 @@ export function StudyFlashcards() {
       // thousand-word deck on every visit isn't viable.
       const wordsToFetch = isSavedDeck
         ? sourceWords
-        : selectWordsToStudy(sourceWords, {
-            hasCard: hasCardRef.current,
-            getCard: getCardRef.current,
-          });
+        : selectWordsToStudy(
+            sourceWords,
+            {
+              hasCard: hasCardRef.current,
+              getCard: getCardRef.current,
+            },
+            newWordsPerSession,
+          );
 
       const results = await Promise.all(
         wordsToFetch.map(async (word) => {
@@ -365,6 +371,7 @@ export function StudyFlashcards() {
     isSavedDeck,
     targetLanguage,
     languageLoading,
+    newWordsPerSession,
   ]);
 
   function rate(word: string, rating: Grade) {

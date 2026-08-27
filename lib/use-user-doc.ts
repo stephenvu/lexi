@@ -13,6 +13,7 @@ export type UserDoc = {
   ttsRepeatCount?: number
   ttsPauseSeconds?: number
   ratingButtonCount?: number
+  newWordsPerSession?: number
 }
 
 type Listener = () => void

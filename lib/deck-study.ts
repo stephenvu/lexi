@@ -12,15 +12,17 @@ export const NEW_WORDS_PER_SESSION = 5
 /**
  * From a candidate word list (e.g. a whole pre-loaded deck), returns what
  * to actually study right now: everything genuinely due for review, plus
- * up to NEW_WORDS_PER_SESSION never-before-seen words. Without this cap, a
- * large deck with nothing studied yet would try to introduce (and fetch
- * definitions for) its entire word list in one sitting — a word's memory
- * strength doesn't depend on which deck it came from, so "never studied"
- * is exactly as true for a 3,000-word deck as it is for a single newly
- * saved word. Used both to build the actual study queue (Study) and to
- * compute the "N to study" count shown before tapping in (Library), so
- * the two always agree. Not used for the saved-words "deck" itself, which
- * fetches every saved word and filters to due client-side (see
+ * up to `newWordsPerSession` never-before-seen words (defaulting to
+ * NEW_WORDS_PER_SESSION — override with the user's own preference via
+ * lib/use-new-words-per-session.ts). Without this cap, a large deck with
+ * nothing studied yet would try to introduce (and fetch definitions for)
+ * its entire word list in one sitting — a word's memory strength doesn't
+ * depend on which deck it came from, so "never studied" is exactly as
+ * true for a 3,000-word deck as it is for a single newly saved word. Used
+ * both to build the actual study queue (Study) and to compute the "N to
+ * study" count shown before tapping in (Library), so the two always
+ * agree. Not used for the saved-words "deck" itself, which fetches every
+ * saved word and filters to due client-side (see
  * components/study-flashcards.tsx's isSavedDeck branch) — deliberately
  * uncapped, unlike this function's new-word cap.
  *
@@ -31,7 +33,8 @@ export const NEW_WORDS_PER_SESSION = 5
  */
 export function selectWordsToStudy(
   words: string[],
-  srsCards: Pick<SrsCards, "hasCard" | "getCard">
+  srsCards: Pick<SrsCards, "hasCard" | "getCard">,
+  newWordsPerSession: number = NEW_WORDS_PER_SESSION
 ): string[] {
   const now = new Date()
   const due: string[] = []
@@ -47,7 +50,7 @@ export function selectWordsToStudy(
     }
   }
 
-  return [...due, ...shuffle(fresh).slice(0, NEW_WORDS_PER_SESSION)]
+  return [...due, ...shuffle(fresh).slice(0, newWordsPerSession)]
 }
 
 export type DeckStudyStats = {
