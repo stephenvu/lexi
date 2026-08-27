@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { GraduationCapIcon, TurtleIcon, Volume2Icon } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { GraduationCapIcon, TurtleIcon, Volume2Icon, XIcon } from "lucide-react";
 import { Rating, State, type Grade } from "ts-fsrs";
 
 import { Badge } from "@/components/ui/badge";
@@ -150,6 +150,7 @@ type ViewState =
   | { status: "reviewing"; queue: DefinitionResult[]; index: number };
 
 export function StudyFlashcards() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const queryDeckId = searchParams.get("deck");
 
@@ -424,10 +425,25 @@ export function StudyFlashcards() {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-[34px] leading-[41px] font-bold tracking-[-0.4px]">
-          Study
-        </h1>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="glass"
+            size="icon"
+            className="shrink-0 rounded-full"
+            onClick={() => router.push("/library")}
+            aria-label="Close"
+          >
+            <XIcon />
+          </Button>
+          {card && intervals && (
+            <Progress
+              value={(sessionIndex / sessionTotal) * 100}
+              className="flex-1"
+            />
+          )}
+        </div>
         {deckLabel && (
           <p className="text-sm text-muted-foreground">Studying {deckLabel}</p>
         )}
@@ -483,13 +499,6 @@ export function StudyFlashcards() {
 
       {card && intervals && (
         <>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs text-muted-foreground">
-              Card {sessionIndex + 1} of {sessionTotal}
-            </span>
-            <Progress value={(sessionIndex / sessionTotal) * 100} />
-          </div>
-
           <Card>
             <CardContent className="flex min-h-[300px] flex-col gap-6">
               <div className="flex items-center justify-between">

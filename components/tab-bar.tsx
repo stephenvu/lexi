@@ -17,7 +17,7 @@ const TABS = [
 export function TabBar() {
   const pathname = usePathname()
 
-  if (pathname === "/login") return null
+  if (pathname === "/login" || pathname === "/study") return null
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-3">
