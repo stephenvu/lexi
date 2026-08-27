@@ -10,6 +10,8 @@ export type UserDoc = {
   srsCards?: Record<string, unknown>
   targetLanguage?: string
   lastStudyDeck?: string
+  ttsRepeatCount?: number
+  ttsPauseSeconds?: number
 }
 
 type Listener = () => void
