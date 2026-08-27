@@ -149,8 +149,7 @@ export default function LibraryPage() {
                     href={`/study?deck=${encodeURIComponent(deck.id)}`}
                     className={cn(
                       "flex min-h-[64px] items-center gap-3 px-[18px] py-3.5",
-                      index < all.length - 1 &&
-                        "border-b hairline-border",
+                      index < all.length - 1 && "border-b hairline-border",
                     )}
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
