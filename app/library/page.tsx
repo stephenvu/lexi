@@ -96,7 +96,7 @@ export default function LibraryPage() {
           Library
         </h1>
 
-        <div className="grid grid-cols-2 gap-1 rounded-[21px] border-[0.5px] border-white/70 bg-[color-mix(in_oklch,white_44%,transparent)] p-[3px] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_6px_18px_rgba(12,32,24,0.06)] backdrop-blur-2xl backdrop-saturate-[1.8]">
+        <div className="grid grid-cols-2 gap-1 rounded-[21px] border-[0.5px] border-white/70 dark:border-white/10 bg-[color-mix(in_oklch,white_44%,transparent)] dark:bg-[color-mix(in_oklch,var(--card)_55%,transparent)] p-[3px] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_6px_18px_rgba(12,32,24,0.06)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_18px_rgba(0,0,0,0.35)] backdrop-blur-2xl backdrop-saturate-[1.8]">
           {(
             [
               { key: "decks", label: "Decks" },
@@ -110,7 +110,7 @@ export default function LibraryPage() {
               className={cn(
                 "flex min-h-[38px] items-center justify-center rounded-2xl text-[15px] tracking-tight",
                 segment === key
-                  ? "bg-[color-mix(in_oklch,white_92%,transparent)] font-semibold text-foreground shadow-[0_2px_6px_rgba(12,32,24,0.1),inset_0_1px_0_rgba(255,255,255,0.9)]"
+                  ? "bg-[color-mix(in_oklch,white_92%,transparent)] dark:bg-[color-mix(in_oklch,var(--card)_92%,transparent)] font-semibold text-foreground shadow-[0_2px_6px_rgba(12,32,24,0.1),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_2px_6px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.08)]"
                   : "font-medium text-muted-foreground",
               )}
             >
@@ -150,7 +150,7 @@ export default function LibraryPage() {
                     className={cn(
                       "flex min-h-[64px] items-center gap-3 px-[18px] py-3.5",
                       index < all.length - 1 &&
-                        "border-b border-[rgba(60,60,67,0.14)]",
+                        "border-b hairline-border",
                     )}
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -206,7 +206,7 @@ export default function LibraryPage() {
                 className={cn(
                   "flex min-h-[60px] items-center gap-3 px-[18px] py-3.5",
                   index < savedState.words.length - 1 &&
-                    "border-b border-[rgba(60,60,67,0.14)]",
+                    "border-b hairline-border",
                 )}
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">

@@ -54,6 +54,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      // The class attribute is intentionally mutated before hydration by
+      // the inline script below (dark mode) — expected server/client
+      // mismatch on this one attribute, not a bug.
+      suppressHydrationWarning
       className={cn(
         "h-full",
         "antialiased",
@@ -73,6 +77,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="theme-color" content="#008236" />
       <body className="min-h-full flex flex-col pb-24">
+        {/* Blocking, synchronous, and first in <body> (a bare <script>
+            can't be a direct child of <html> — that's invalid HTML and
+            causes a hydration error, unlike the <meta> tags above, which
+            React 19 does specially hoist into <head>). Applies the `dark`
+            class (see lib/use-theme.ts, same "lexi-theme" localStorage
+            key) before anything else in <body> renders, so there's no
+            flash of the wrong theme on load. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("lexi-theme");var d=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();`,
+          }}
+        />
         {children}
         <TabBar />
         <ServiceWorkerRegister />

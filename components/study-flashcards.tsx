@@ -585,7 +585,7 @@ export function StudyFlashcards() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-4 border-t border-[rgba(60,60,67,0.16)] pt-4">
+                  <div className="flex flex-col gap-4 border-t hairline-border pt-4">
                     <p className="text-base">{card.entries[0].definition}</p>
 
                     {card.entries[0].translations
@@ -595,7 +595,7 @@ export function StudyFlashcards() {
                       .map((translation) => (
                         <div
                           key={translation.lang}
-                          className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4"
+                          className="flex flex-col gap-1 rounded-[18px] subtle-fill p-4"
                         >
                           <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                             {languageDisplayNames.of(translation.lang) ??
@@ -613,7 +613,7 @@ export function StudyFlashcards() {
                         </div>
                       ))}
 
-                    <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
+                    <div className="flex flex-col gap-1 rounded-[18px] subtle-fill p-4">
                       <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                         Example
                       </span>

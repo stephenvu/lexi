@@ -275,7 +275,7 @@ export function WordDetail({ word }: { word: string }) {
             )}
           </div>
 
-          <div className="h-px bg-[rgba(60,60,67,0.16)]" />
+          <div className="h-px hairline-border" />
 
           <div className="flex flex-col">
             {state.data.entries.map((entry, index) => {
@@ -285,8 +285,7 @@ export function WordDetail({ word }: { word: string }) {
                   key={index}
                   className={cn(
                     "flex flex-col gap-3",
-                    index > 0 &&
-                      "mt-3 border-t border-[rgba(60,60,67,0.16)] pt-3",
+                    index > 0 && "mt-3 border-t hairline-border pt-3",
                   )}
                 >
                   <button
@@ -318,7 +317,7 @@ export function WordDetail({ word }: { word: string }) {
                         .map((translation) => (
                         <div
                           key={translation.lang}
-                          className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4"
+                          className="flex flex-col gap-1 rounded-[18px] subtle-fill p-4"
                         >
                           <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                             {languageDisplayNames.of(translation.lang) ??
@@ -335,7 +334,7 @@ export function WordDetail({ word }: { word: string }) {
                           </p>
                         </div>
                       ))}
-                      <div className="flex flex-col gap-1 rounded-[18px] bg-[rgba(118,118,128,0.1)] p-4">
+                      <div className="flex flex-col gap-1 rounded-[18px] subtle-fill p-4">
                         <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                           Example
                         </span>

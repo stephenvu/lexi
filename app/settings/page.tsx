@@ -17,6 +17,7 @@ import { signOutUser, useAuth } from "@/lib/use-auth";
 import { useNewWordsPerSession } from "@/lib/use-new-words-per-session";
 import { useRatingButtonCount } from "@/lib/use-rating-button-count";
 import { useTargetLanguage } from "@/lib/use-target-language";
+import { type Theme, useTheme } from "@/lib/use-theme";
 import { useTtsSettings } from "@/lib/use-tts-settings";
 
 // Base UI's Select needs an explicit items array (unlike Radix's inline-JSX
@@ -25,6 +26,12 @@ const LANGUAGE_ITEMS = SUPPORTED_LANGUAGES.map(({ code, label }) => ({
   value: code,
   label,
 }));
+
+const THEME_ITEMS = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
 
 const REPEAT_COUNT_ITEMS = [1, 2, 3, 4, 5, 6, 8, 10].map((count) => ({
   value: String(count),
@@ -52,6 +59,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { targetLanguage, setTargetLanguage } = useTargetLanguage();
+  const { theme, setTheme } = useTheme();
   const { repeatCount, pauseSeconds, setRepeatCount, setPauseSeconds } =
     useTtsSettings();
   const { ratingButtonCount, setRatingButtonCount } = useRatingButtonCount();
@@ -102,6 +110,33 @@ export default function SettingsPage() {
             <SelectContent>
               <SelectGroup>
                 {LANGUAGE_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="glass-surface flex items-center justify-between gap-3 rounded-[26px] p-4">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm font-semibold">Appearance</span>
+            <span className="truncate text-xs text-muted-foreground">
+              Choose light, dark, or match your device.
+            </span>
+          </div>
+          <Select
+            items={THEME_ITEMS}
+            value={theme}
+            onValueChange={(value) => value && setTheme(value as Theme)}
+          >
+            <SelectTrigger className="shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {THEME_ITEMS.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
                     {item.label}
                   </SelectItem>
