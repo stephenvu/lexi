@@ -34,13 +34,41 @@ function notify(uid: string) {
   listeners.get(uid)?.forEach((listener) => listener())
 }
 
+// Firestore hands back a brand-new object graph (arrays, nested maps) on
+// every snapshot, even for fields whose value didn't actually change — so
+// naively caching snapshot.data() as-is gives every field a new reference
+// on every write to this doc, not just the field that was actually
+// written. That breaks anything downstream that depends on a field's
+// reference staying stable across unrelated writes — e.g.
+// components/study-flashcards.tsx's deck-loading effect, keyed on
+// `favorites`, which would otherwise reshuffle and re-fetch the whole
+// study queue after every single flashcard rating (a `srsCards`-only
+// write touches this same shared doc). Reusing the previous value's
+// reference per-field when its content is unchanged fixes that at the
+// source, for every consumer of this doc.
+function mergeUnchangedFields(previous: UserDoc | undefined, next: UserDoc): UserDoc {
+  if (!previous) return next
+  const merged: Record<string, unknown> = { ...next }
+  for (const key of Object.keys(next)) {
+    const prevValue = (previous as Record<string, unknown>)[key]
+    if (
+      prevValue !== undefined &&
+      JSON.stringify(prevValue) === JSON.stringify((next as Record<string, unknown>)[key])
+    ) {
+      merged[key] = prevValue
+    }
+  }
+  return merged as UserDoc
+}
+
 function ensureSubscription(uid: string) {
   if (unsubscribers.has(uid)) return
   const ref = doc(db, "users", uid)
   const unsubscribe = onSnapshot(
     ref,
     (snapshot) => {
-      cache.set(uid, (snapshot.data() as UserDoc | undefined) ?? {})
+      const next = (snapshot.data() as UserDoc | undefined) ?? {}
+      cache.set(uid, mergeUnchangedFields(cache.get(uid), next))
       loadedUids.add(uid)
       notify(uid)
     },
