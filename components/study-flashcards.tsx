@@ -438,17 +438,24 @@ export function StudyFlashcards() {
             <XIcon />
           </Button>
           {card && intervals && (
-            <Progress
-              value={(sessionIndex / sessionTotal) * 100}
-              className="flex-1"
-            />
+            <>
+              <Progress
+                value={(sessionIndex / sessionTotal) * 100}
+                className="flex-1"
+              />
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                {sessionIndex + 1}/{sessionTotal}
+              </span>
+            </>
           )}
         </div>
         {deckLabel && (
-          <p className="text-sm text-muted-foreground">Studying {deckLabel}</p>
+          <p className="text-center text-sm text-muted-foreground">
+            Studying {deckLabel}
+          </p>
         )}
         {statsReady && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             {formatDeckStats(deckStats)}
           </p>
         )}
