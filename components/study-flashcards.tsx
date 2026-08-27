@@ -17,6 +17,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -416,6 +417,14 @@ export function StudyFlashcards() {
         )
       : RATING_BUTTONS;
 
+  // Progress through *this session's* fixed queue (not the deck's overall
+  // New/Learn/Due composition above, which doesn't change as you study).
+  // sessionIndex reflects cards already rated — the currently-shown card
+  // doesn't count as done yet — matching how rate() advances viewState.index.
+  const sessionTotal =
+    viewState.status === "reviewing" ? viewState.queue.length : 0;
+  const sessionIndex = viewState.status === "reviewing" ? viewState.index : 0;
+
   return (
     <div className="flex w-full flex-col gap-6">
       <div className="flex flex-col gap-0.5">
@@ -477,6 +486,13 @@ export function StudyFlashcards() {
 
       {card && intervals && (
         <>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-muted-foreground">
+              Card {sessionIndex + 1} of {sessionTotal}
+            </span>
+            <Progress value={(sessionIndex / sessionTotal) * 100} />
+          </div>
+
           <Card>
             <CardContent className="flex min-h-[300px] flex-col gap-6">
               <div className="flex items-center justify-between">
