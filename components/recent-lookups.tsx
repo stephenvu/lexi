@@ -44,8 +44,11 @@ function Chip({
   onRemove: (word: string) => void
 }) {
   return (
-    <Badge variant="ghost" className="glass-chip text-foreground shrink-0 gap-1 pr-1">
-      <button type="button" onClick={() => onSelect(word)} className="flex items-center gap-1">
+    <Badge
+      variant="ghost"
+      className="glass-chip text-foreground shrink-0 h-9 gap-1.5 rounded-full px-3.5 py-1.5 pr-2 text-sm"
+    >
+      <button type="button" onClick={() => onSelect(word)} className="flex items-center gap-1.5">
         {word}
       </button>
       <button
@@ -57,7 +60,7 @@ function Chip({
         aria-label={`Remove ${word}`}
         className="opacity-70 hover:opacity-100"
       >
-        <XIcon className="size-3" />
+        <XIcon className="size-4" />
       </button>
     </Badge>
   )
