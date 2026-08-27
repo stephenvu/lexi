@@ -3,12 +3,11 @@ import { State } from "ts-fsrs"
 import type { SrsCards } from "@/lib/use-srs-cards"
 import { shuffle } from "@/lib/utils"
 
-// Anki's own default "new cards per day" — applied per visit here rather
-// than a true daily count (simpler; the trade-off is a user could reload
-// to see more new words sooner than a strict daily limit would allow, an
-// edge case not worth the added complexity of tracking "how many new
-// words already introduced today").
-export const NEW_WORDS_PER_SESSION = 20
+// A cap on new words per visit rather than a true daily count (simpler;
+// the trade-off is a user could reload to see more new words sooner than
+// a strict daily limit would allow, an edge case not worth the added
+// complexity of tracking "how many new words already introduced today").
+export const NEW_WORDS_PER_SESSION = 5
 
 /**
  * From a candidate word list (e.g. a whole pre-loaded deck), returns what
