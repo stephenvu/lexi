@@ -275,7 +275,7 @@ export function WordDetail({ word }: { word: string }) {
             )}
           </div>
 
-          <div className="h-px hairline-border" />
+          <div className="h-px hairline-fill" />
 
           <div className="flex flex-col">
             {state.data.entries.map((entry, index) => {

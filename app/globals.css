@@ -218,13 +218,21 @@
    since a light-mode-tuned black-tinted border/fill is invisible or
    wrong-toned against a dark background. */
 @utility hairline-border {
-  /* Sets both properties so this works as a drop-in for either a real
-     border (border-t/border-b) or a filled h-px divider div. */
-  background-color: rgba(60, 60, 67, 0.16);
   border-color: rgba(60, 60, 67, 0.16);
   .dark & {
-    background-color: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+/* Same color, as a background-color instead — for a divider built as a
+   filled h-px div rather than a real border-t/border-b. Kept separate
+   from hairline-border: a single utility setting both properties would
+   paint an unwanted full-element background fill wherever it's used as
+   a border on a larger container (e.g. word-detail.tsx's per-sense
+   divider), not just a thin line. */
+@utility hairline-fill {
+  background-color: rgba(60, 60, 67, 0.16);
+  .dark & {
+    background-color: rgba(255, 255, 255, 0.12);
   }
 }
 @utility subtle-fill {
