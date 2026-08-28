@@ -8,22 +8,15 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
 
 ## Features
 
-### Current (shipped)
+- **AI-generated definitions** — [Gemini](https://ai.google.dev/) generates each definition on demand: part of speech, examples, synonyms/antonyms, IPA pronunciation with audio, a CEFR difficulty level, and "did you mean" suggestions for typos.
+- **Bilingual translations** — see any definition in a language of your choice, not just English.
+- **Google Sign-In** — saved words, lookup history, and every preference sync in real time across all your devices.
+- **Spaced-repetition flashcards** — study your saved words or curated decks (e.g. Oxford 3000) with an [FSRS](https://github.com/open-spaced-repetition/ts-fsrs)-scheduled review queue, so only what's actually due shows up.
+- **Light & dark mode** — matches your system by default, or pick one yourself.
+- **Installable** — add Lexi to your home screen or desktop like a native app.
+- **Fast, cached lookups** — repeat lookups are instant, cached both server- and client-side.
 
-- **AI-generated definitions** — Gemini Flash Lite generates each definition on demand instead of querying a static dictionary database.
-- **Structured results** — each sense returned with its part of speech, a one-sentence definition, and one example sentence (up to 5 senses per word).
-- **Graceful "not found" handling** — gibberish/unrecognized input gets a distinct empty state with an explanation, not an error.
-- **Cached lookups** — results are cached in Firestore by normalized word, so repeat lookups of the same word are near-instant instead of re-calling Gemini.
-- **Deliberate search-on-submit** — looks up on Enter/click only (never live-as-you-type), avoiding a Gemini call per keystroke; a new search cancels a still-in-flight one.
-- **Richer lookups** — synonyms/antonyms, pronunciation (IPA, syllable breakdown, and audio), usage notes, "did you mean" fallback for typos.
-- **Difficulty indicator** — each word labeled with its CEFR level (A1–C2), returned by Gemini as part of the same definition response. Shown on both the search result card and flashcards.
-- **Bilingual definitions** — each sense also translated (word + meaning) via the Google Cloud Translation API, into a single target language you pick yourself on the Settings page (defaults to English, meaning no translation shown — English is already the dictionary's own language). Translations are cached per (word, language) pair in Firestore, so switching languages reuses anything already translated for anyone else who picked the same one. Gracefully skipped (no crash, just an empty array) if `GOOGLE_TRANSLATE_API_KEY` isn't set.
-- **Settings page** — reached via the avatar in the top-right header (not a bottom-nav tab): account info/sign-out and the bilingual-translation target language live here.
-- **Authentication & cross-device sync** — Google Sign-In, required to use the app. Saved words, lookup history, study scheduling, and your target-language preference all live in Firestore under your account (`users/{uid}`) and sync in real time across every device signed into it — see `specs/authentication.md`.
-- **Saved words & history** — saved words (starred, pinned) and a running history of recent lookups, shown as clickable chips below the search box.
-- **Study features** — spaced repetition via [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) on `/study`: only what's actually due gets reviewed, rated Again/Hard/Good/Easy. Library/Decks lists your saved words as a deck of their own alongside pre-loaded decks (e.g. Oxford 3000); visiting `/study` with no deck specified resumes whichever one you last studied.
-- **Cost safety net** — new-word lookups (the ones that actually call Gemini; repeat/cached lookups are unaffected) are rate-limited per signed-in user in production. A safety net against a runaway bill, not attacker-resistant abuse prevention — see the "Cost safety net" note under Deploy below.
-- **Installable (PWA)** — a web app manifest + a minimal service worker make Lexi installable to a home screen/desktop via the browser's native install affordance (no custom install button — [Next.js's own guidance](https://nextjs.org/docs/app/guides/progressive-web-apps) is against `beforeinstallprompt`, since it doesn't work on Safari iOS). Offline support and push notifications are separate, unimplemented features.
+See [`CLAUDE.md`](./CLAUDE.md) and `specs/` for how each of these is actually built.
 
 ### Planned / beyond current MVP scope
 
