@@ -13,8 +13,12 @@ See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integrati
     <td align="center"><img src="screenshots/home.PNG" width="180" alt="Home screen with search bar and recent lookups"><br><sub>Home</sub></td>
     <td align="center"><img src="screenshots/word.PNG" width="180" alt="Word lookup with translation, example, synonyms and antonyms"><br><sub>Word lookup</sub></td>
     <td align="center"><img src="screenshots/library.PNG" width="180" alt="Library showing Saved words and the Oxford 3000 deck"><br><sub>Library</sub></td>
+    <td align="center"><img src="screenshots/settings.PNG" width="180" alt="Settings page with language, appearance, and study preferences"><br><sub>Settings</sub></td>
+  </tr>
+  <tr>
     <td align="center"><img src="screenshots/study-front.PNG" width="180" alt="Flashcard front, face-down"><br><sub>Study</sub></td>
     <td align="center"><img src="screenshots/study-flipped.PNG" width="180" alt="Flashcard flipped with translation and rating buttons"><br><sub>Study (answer)</sub></td>
+    <td align="center"><img src="screenshots/study-caught-up.PNG" width="180" alt="Study session complete, all caught up"><br><sub>Study (caught up)</sub></td>
   </tr>
 </table>
 
