@@ -1,10 +1,22 @@
 # Lexi
 
-An AI-powered English dictionary for language learners, built with Next.js and Gemini Flash Lite.
+A simple AI-powered English dictionary and vocabulary builder. Made by Claude.
 
 **Live:** [lexi--lexi-gemini.asia-southeast1.hosted.app](https://lexi--lexi-gemini.asia-southeast1.hosted.app)
 
 See [`CLAUDE.md`](./CLAUDE.md) for how the pieces fit together (Gemini integration, the Firestore cache, the API route, and the UI).
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="screenshots/home.PNG" width="180" alt="Home screen with search bar and recent lookups"><br><sub>Home</sub></td>
+    <td align="center"><img src="screenshots/word.PNG" width="180" alt="Word lookup with translation, example, synonyms and antonyms"><br><sub>Word lookup</sub></td>
+    <td align="center"><img src="screenshots/library.PNG" width="180" alt="Library showing Saved words and the Oxford 3000 deck"><br><sub>Library</sub></td>
+    <td align="center"><img src="screenshots/study-front.PNG" width="180" alt="Flashcard front, face-down"><br><sub>Study</sub></td>
+    <td align="center"><img src="screenshots/study-flipped.PNG" width="180" alt="Flashcard flipped with translation and rating buttons"><br><sub>Study (answer)</sub></td>
+  </tr>
+</table>
 
 ## Features
 
@@ -24,6 +36,17 @@ Deliberately left out of the first build to keep scope tight — listed here as 
 
 - **Etymology & related/confusable words** — deferred from the Richer Lookups pass; see `specs/richer-lookups.md`.
 - **Firebase App Check** — a stronger, attacker-resistant anti-abuse layer than the current per-user rate limit, at the cost of a reCAPTCHA registration.
+
+## Tech Stack
+
+- **Framework** — [Next.js](https://nextjs.org/) 16 (App Router, Turbopack) on [React](https://react.dev/) 19, TypeScript throughout.
+- **UI** — [Tailwind CSS](https://tailwindcss.com/) v4, [shadcn/ui](https://ui.shadcn.com/) built on [Base UI](https://base-ui.com/) primitives, [Lucide](https://lucide.dev/) icons.
+- **AI** — [Gemini](https://ai.google.dev/) (Flash Lite) for definitions, [Google Cloud Translation](https://cloud.google.com/translate) for bilingual translations.
+- **Auth & data** — Firebase Authentication (Google Sign-In), Firestore (definitions cache + per-user data), Firebase Admin SDK for server-side session verification.
+- **Spaced repetition** — [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) (the FSRS algorithm) schedules flashcard review.
+- **Client-side caching** — IndexedDB caches definitions in the browser; localStorage holds the theme preference.
+- **PWA** — a Web App Manifest + a minimal service worker make it installable to a home screen or desktop.
+- **Hosting** — [Firebase App Hosting](https://firebase.google.com/docs/app-hosting), auto-deployed from `main` on push.
 
 ## Prerequisites
 
