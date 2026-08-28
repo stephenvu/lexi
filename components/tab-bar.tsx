@@ -8,20 +8,21 @@ import { cn } from "@/lib/utils"
 
 const TABS = [
   { href: "/", label: "Home", icon: HouseIcon },
-  { href: "/study", label: "Study", icon: GraduationCapIcon },
   { href: "/library", label: "Library", icon: LibraryIcon },
 ] as const
 
 /** Persistent bottom glass tab bar, rendered once from the root layout so
- * it survives navigation between pages. */
+ * it survives navigation between pages. Study is a separate circular
+ * shortcut beside the pill, not a tab — kept distinct since it's the
+ * app's primary action, not a browsing destination like Home/Library. */
 export function TabBar() {
   const pathname = usePathname()
 
   if (pathname === "/login" || pathname === "/study") return null
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-3">
-      <div className="glass-tabbar grid w-full max-w-sm grid-cols-3 gap-1 rounded-[30px] p-1.5">
+    <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-center gap-3 px-4 pb-3">
+      <div className="glass-tabbar grid max-w-[220px] flex-1 grid-cols-2 gap-1 rounded-[30px] p-1.5">
         {TABS.map(({ href, label, icon: Icon }) => {
           // /word/[word] is a pushed detail screen, not a tab of its own —
           // no tab is highlighted while on it, regardless of which tab (or
@@ -42,6 +43,13 @@ export function TabBar() {
           )
         })}
       </div>
+      <Link
+        href="/study"
+        aria-label="Study"
+        className="glass-circle flex size-14 shrink-0 items-center justify-center rounded-full text-primary"
+      >
+        <GraduationCapIcon className="size-6" />
+      </Link>
     </nav>
   )
 }
